@@ -42,18 +42,25 @@ public interface I18nSupport {
   /** Translate with an inline ground-truth fallback. */
   default String tr(String key, String fallback) {
     String translated = ((Component) this).getTranslation(key);
-    if (translated == null || translated.isBlank() || translated.equals(key)) {
-      return fallback;
-    }
-    return translated;
+    return isMissing(translated, key) ? fallback : translated;
   }
 
   /** Translate with placeholders {@code {0}}…{@code {n}}. */
   default String tr(String key, String fallback, Object... params) {
     String translated = ((Component) this).getTranslation(key, params);
-    if (translated == null || translated.isBlank() || translated.equals(key)) {
-      return MessageFormat.format(fallback, params);
-    }
-    return translated;
+    return isMissing(translated, key) ? MessageFormat.format(fallback, params) : translated;
+  }
+
+  /**
+   * A component-scoped {@code getTranslation} does not return {@code null} on a
+   * miss — Vaadin wraps it as the marker {@code "!<lang>: <key>"}. Treat that
+   * marker (as well as null/blank/raw-key) as "not translated" so the inline
+   * fallback actually wins, as the i18n contract promises.
+   */
+  private static boolean isMissing(String translated, String key) {
+    return translated == null
+        || translated.isBlank()
+        || translated.equals(key)
+        || (translated.startsWith("!") && translated.endsWith(key));
   }
 }

@@ -2,6 +2,87 @@
 
 ## Unreleased
 
+## 00.20.00 — 2026-07-08
+
+First cut of the **Publikationsverwaltung MVP** — the ClickUp-replacing
+publication-management application — built additively on top of the
+`flow-template` base. New top-level package `com.svenruppert.publications`;
+views live under `com.svenruppert.flow.views.publications`. The template's
+showcase views (Home, About, Youtube, Push demo, Security features) are kept.
+
+### Domain
+- `Statusverlauf<S>` — a hardened, append-only status history: order rests on a
+  strictly ascending sequence number (not the timestamp), the current state is
+  always the target of the last event and cannot diverge from the history. No
+  `Clock` field, so the persisted graph stays free of runtime infrastructure;
+  timestamps are passed in for import/tests.
+- The three orthogonal status dimensions — `Arbeitszustand` (editorial, on
+  `Teil`), `Veroeffentlichungsstatus` (production) and `Vertriebsstatus`
+  (acquisition, both on `Veroeffentlichung`) — plus `Statuswechsel<S>`.
+- Content aggregate `Issue → Teil → Sprachfassung → Veroeffentlichung`,
+  `Publikationsort`, `Datenwurzel`. Invariants: one Sprachfassung per language,
+  part reordering renumbers 1..n, and the **Sprachregel** (a place must support
+  the version's language) guards every publication at construction and on
+  `setOrt`.
+
+### Persistence
+- A dedicated Eclipse-Store instance for the domain graph under
+  `app/publications` (`AppStoragePaths.publicationsDir()`), separate from the
+  framework and user-directory stores. `PublicationsPersistence` (interface) +
+  in-memory test seam + Eclipse-Store impl (eager storer for a deep persist) +
+  `PublicationsRepository` + lazy `PublicationsProvider`, mirroring the
+  user-directory quintet. A real round-trip test proves the graph incl. status
+  histories survives a restart.
+
+### Security
+- Four new permissions — `publications:read`, `publications:edit`,
+  `masterdata:edit`, `publications:import`. `USER` acts as editor
+  (read/edit + app:view); `ADMIN` gets all eight (incl. master-data + import).
+
+### Views (V1–V7)
+- **V1 Themen-Arbeitsplatz** (`/themen`) — master/detail issue grid with a
+  filter bar, tags and the ordered parts.
+- **V2 Sprachfassungs-Editor** (`/teil/:id`) — first parametrised route;
+  per-language manuscript + planned characters, publications grid, Sprachregel-
+  filtered plan action.
+- **V4 Veröffentlichungssicht** (`/veroeffentlichung/:id`) — the dramaturgical
+  core: Akquise and Herstellung as two equal columns with per-dimension advance
+  and history; plus a filterable publications list (`/veroeffentlichungen`).
+- **V3 Redaktionstafel** (`/redaktion`) — columns per editorial state, a
+  per-card state select writes the transition (drag&drop is a later step).
+- **V5 Verlaufsansicht** (`/verlauf/{teil,akquise,herstellung}/:id`) — the
+  append-only chain, ordered by sequence number; read-only.
+- **V6 Publikationsorte** (`/orte`, `masterdata:edit`) — master data with a
+  language-in-use removal guard.
+- **V7 Import-Konsole** (`/import`, `publications:import`) — ClickUp ETL:
+  `extract` (real API, `java.net.http` + Jackson 3), `transformAndLoad`
+  (reconstructs the levels, disentangles the conflated status, idempotent via
+  the recorded ClickUp task id), and a repeat run that creates no duplicates.
+- Dashboard extended with a Topics / Parts / Publications metric row.
+- Drawer extended with **Work** and **Publishing** sections; the two admin
+  entries join **Administration**.
+
+### Fixes / hardening
+- **i18n**: `I18nSupport.tr(key, fallback)` now treats Vaadin's component-scoped
+  `"!<lang>: <key>"` miss-marker as missing, so inline fallbacks actually win
+  for absent keys — matching the documented contract.
+- Standards pass on the new ETL: `HttpStatus.OK.code()` and
+  `MediaType.APPLICATION_JSON.mime()` instead of the magic `200` / JSON literal.
+
+### Tooling / tests
+- 259 tests green (no mocks; Browserless per view, real Eclipse-Store round-trip
+  for persistence, fixture-based idempotent ETL test).
+- Provisional per-package mutation floors for the new packages; `__overall__`
+  35 → 30 with a written reason. Recalibrate after the first full PIT run.
+
+### Known carry-over
+- **Per-view German translations** for the seven new views are pending — the
+  i18n mechanism and English ground-truth (via inline fallbacks) are in place
+  and verified, navigation is already DE/EN, but the new views render their
+  English fallbacks until the translation pass lands.
+- Redaktionstafel drag&drop (currently a per-card select) and a global navbar
+  search (currently per-view filter bars) are deferred.
+
 ## 00.10.00 — 2026-06-14
 
 First named cut of the template. Bundles the security stack

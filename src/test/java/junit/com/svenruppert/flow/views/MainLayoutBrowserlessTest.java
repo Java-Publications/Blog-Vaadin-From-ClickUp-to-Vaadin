@@ -22,6 +22,7 @@ import com.svenruppert.flow.views.MainLayout;
 import com.svenruppert.jsentinel.authorization.api.SubjectStores;
 import com.vaadin.browserless.BrowserlessTest;
 import com.vaadin.flow.component.Component;
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.sidenav.SideNav;
@@ -34,6 +35,7 @@ import org.junit.jupiter.api.Test;
 import java.lang.reflect.Field;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -47,6 +49,13 @@ class MainLayoutBrowserlessTest extends BrowserlessTest {
   void seedAdminAndClearSubject() {
     TestSupport.seedAdminAndResetBootstrap();
     SubjectStores.subjectStore().deleteCurrentSubject(AppUser.class);
+    // Deterministic locale: assertions below expect the English labels, but the
+    // JVM default locale (e.g. de_DE on a dev machine) would otherwise make the
+    // I18n facade resolve German strings.
+    UI ui = UI.getCurrent();
+    if (ui != null) {
+      ui.setLocale(Locale.ENGLISH);
+    }
   }
 
   @Test
@@ -69,25 +78,33 @@ class MainLayoutBrowserlessTest extends BrowserlessTest {
     MainLayout layout = new MainLayout();
 
     assertEquals("Sign out", authButtonText(layout));
-    assertEquals(List.of("Public", "Application"), drawerSectionLabels(layout),
+    // USER (editor) holds publications:read → Work + Publishing appear; still no
+    // Administration (no admin/master-data/import permission).
+    assertEquals(List.of("Public", "Work", "Publishing", "Application"),
+        drawerSectionLabels(layout),
         "regular user must NOT see the Administration section");
   }
 
   @Test
-  @DisplayName("authenticated ADMIN → all three drawer sections")
-  void adminSeesAllThreeSections() throws Exception {
+  @DisplayName("authenticated ADMIN → all drawer sections incl. publications admin")
+  void adminSeesAllSections() throws Exception {
     AppUser admin = new AppUser(12L, "Alice",
         EnumSet.of(AuthorizationRole.ADMIN, AuthorizationRole.USER));
     SubjectStores.subjectStore().setCurrentSubject(admin, AppUser.class);
 
     MainLayout layout = new MainLayout();
 
-    assertEquals(List.of("Public", "Application", "Administration"),
+    assertEquals(List.of("Public", "Work", "Publishing", "Application", "Administration"),
         drawerSectionLabels(layout));
     List<String> adminItems = drawerItemsIn(layout, "Administration");
+    assertTrue(adminItems.contains("Publication places"));
+    assertTrue(adminItems.contains("Import console"));
     assertTrue(adminItems.contains("Audit log"));
     assertTrue(adminItems.contains("Active sessions"));
     assertTrue(adminItems.contains("Role administration"));
+    // Work section carries the two editing surfaces
+    assertTrue(drawerItemsIn(layout, "Work").contains("Topic workspace"));
+    assertTrue(drawerItemsIn(layout, "Work").contains("Editorial board"));
   }
 
   @Test

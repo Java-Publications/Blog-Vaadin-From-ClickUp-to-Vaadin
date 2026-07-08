@@ -79,6 +79,15 @@ public class MainLayout extends AppLayout
   private static final String K_NAV_AUDIT = "nav.audit";
   private static final String K_NAV_SESSIONS = "nav.sessions";
   private static final String K_NAV_ROLES = "nav.roles";
+  // Publikationsverwaltung navigation
+  private static final String K_NAV_SECTION_ARBEIT = "nav.section.arbeit";
+  private static final String K_NAV_SECTION_VEROEFFENTLICHEN = "nav.section.veroeffentlichen";
+  private static final String K_NAV_THEMEN = "nav.themen";
+  private static final String K_NAV_REDAKTION = "nav.redaktion";
+  private static final String K_NAV_VEROEFFENTLICHUNGEN = "nav.veroeffentlichungen";
+  private static final String K_NAV_VERLAUF = "nav.verlauf";
+  private static final String K_NAV_ORTE = "nav.orte";
+  private static final String K_NAV_IMPORT = "nav.import";
   private static final String K_SIGN_IN = "common.signIn";
   private static final String K_SIGN_OUT = "common.signOut";
 
@@ -151,6 +160,22 @@ public class MainLayout extends AppLayout
         item(tr(K_NAV_SECURITY, "Security features"), VaadinIcon.SHIELD,
             SecurityFeaturesView.class, null, grants)));
 
+    // Arbeit — content editing, any subject with publications:read.
+    SideNav arbeit = section(tr(K_NAV_SECTION_ARBEIT, "Work"),
+        item(tr(K_NAV_THEMEN, "Topic workspace"), VaadinIcon.GLOBE,
+            "themen", "publications:read", grants),
+        item(tr(K_NAV_REDAKTION, "Editorial board"), VaadinIcon.GRID_BIG,
+            "redaktion", "publications:read", grants));
+    if (arbeit != null) container.add(arbeit);
+
+    // Veröffentlichen — publishing + acquisition, publications:read.
+    SideNav veroeff = section(tr(K_NAV_SECTION_VEROEFFENTLICHEN, "Publishing"),
+        item(tr(K_NAV_VEROEFFENTLICHUNGEN, "Publications"), VaadinIcon.NEWSPAPER,
+            "veroeffentlichungen", "publications:read", grants),
+        item(tr(K_NAV_VERLAUF, "History"), VaadinIcon.TIMER,
+            "verlauf", "publications:read", grants));
+    if (veroeff != null) container.add(veroeff);
+
     // Application — any subject with app:view.
     SideNav app = section(tr(K_NAV_SECTION_APPLICATION, "Application"),
         item(tr(K_NAV_DASHBOARD, "Dashboard"), VaadinIcon.DASHBOARD,
@@ -161,6 +186,10 @@ public class MainLayout extends AppLayout
 
     // Administration — only when at least one admin permission is held.
     SideNav admin = section(tr(K_NAV_SECTION_ADMINISTRATION, "Administration"),
+        item(tr(K_NAV_ORTE, "Publication places"), VaadinIcon.HOME_O,
+            "orte", "masterdata:edit", grants),
+        item(tr(K_NAV_IMPORT, "Import console"), VaadinIcon.DOWNLOAD,
+            "import", "publications:import", grants),
         item(tr(K_NAV_AUDIT, "Audit log"), VaadinIcon.RECORDS,
             AuditView.class, "audit:read", grants),
         item(tr(K_NAV_SESSIONS, "Active sessions"), VaadinIcon.USERS,
@@ -206,6 +235,22 @@ public class MainLayout extends AppLayout
     }
     SideNavItem nav = new SideNavItem(label, target, icon.create());
     return nav;
+  }
+
+  /**
+   * Path-based variant of {@link #item(String, VaadinIcon, Class, String, Set)}
+   * — links by route path instead of a class literal, so the drawer can wire
+   * entries to Publikationsverwaltung views whose classes are added in later
+   * issues without a compile-time dependency here.
+   */
+  private static SideNavItem item(String label, VaadinIcon icon,
+                                  String path,
+                                  String requiredPermission,
+                                  Set<String> grants) {
+    if (requiredPermission != null && !grants.contains(requiredPermission)) {
+      return null;
+    }
+    return new SideNavItem(label, path, icon.create());
   }
 
   /**

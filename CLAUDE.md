@@ -81,3 +81,31 @@ The current versions snapshot is:
 | `jetty.version` | `12.1.8` |
 | `jsentinel.version` | `00.74.00` |
 | `nano-vaadin-jetty.version` | `04.00.00` |
+
+## Implementierungszyklus
+
+Follow the global `implementation-cycle` skill. Project-pluggable slots:
+
+- **Tracker** = ClickUp (workspace `2443039`, folder `svenruppert` `90150380304`).
+  - Plan + per-issue: list `publikationsverwaltung` (`901524338583`)
+  - Concepts: `publikationsverwaltung-concepts` (`901524338584`), `Open → deployed`
+  - Features: `publikationsverwaltung-features` (`901524338585`)
+- **Status mapping**: `Open` (not started) → `in progress` → `Closed` (completed).
+  Concept task: `Open → deployed`. (`review`/`on-hold`/`testing`/`bugfixing`/`release prepared`/`skipped` also exist.)
+- **Sync mechanic**: ClickUp status field + a `## Completion log` appended to the task's
+  `markdown_description` (date, commit hash, what shipped, acceptance result). Parent gets status only.
+- **Build/test**: `./mvnw test`; acceptance per issue = module test green + full `./mvnw clean verify`
+  when a shared/parent file changed.
+- **Mutation gate**: `./mvnw -P_mutation-gate org.pitest:pitest-maven:mutationCoverage verify`
+  (floors in `tools/pit-baselines.txt`; add a line per new package).
+- **Publish/deploy**: WAR via `./mvnw clean package -Pproduction` → `target/ROOT.war`; optional
+  fat-jar via `_shadejar`. Tag scheme `v<X.Y.Z>`.
+- **Version/modules**: single-module WAR, `-SNAPSHOT` working line, finalize-strip before release.
+  Domain code lives in `com.svenruppert.publications`; views stay under `com.svenruppert.flow.views`.
+- **Standards pass**: `/java-standards-pass` (haslogger, httpstatus, mediatype, result, vaadin-i18n).
+- **Commit/branch**: work on the integration branch directly; push is the human's decision; never an
+  AI-attribution / "generated with" footer.
+
+**Non-negotiable status discipline:** every issue moves to `in progress` when work begins and to
+`Closed` only when done — no issue stays `Open` while worked on, and none jumps `Open → Closed`
+directly. The board reflects the real state of work at all times.

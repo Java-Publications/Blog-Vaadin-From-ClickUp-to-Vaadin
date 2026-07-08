@@ -39,9 +39,16 @@ class AppAuthorizationServiceTest {
 
   // ── permissionsFor ─────────────────────────────────────────────
 
+  private static final Set<String> ADMIN_PERMISSIONS = Set.of(
+      "app:view", "audit:read", "admin:sessions", "admin:roles",
+      "publications:read", "publications:edit", "masterdata:edit", "publications:import");
+
+  private static final Set<String> EDITOR_PERMISSIONS = Set.of(
+      "app:view", "publications:read", "publications:edit");
+
   @Test
-  @DisplayName("ADMIN+USER subject gets the full four-permission set")
-  void adminGetsAllFourPermissions() {
+  @DisplayName("ADMIN+USER subject gets the full eight-permission set")
+  void adminGetsAllEightPermissions() {
     AppUser admin = new AppUser(1L, "admin",
         EnumSet.of(AuthorizationRole.ADMIN, AuthorizationRole.USER));
 
@@ -49,26 +56,24 @@ class AppAuthorizationServiceTest {
         .map(PermissionName::value)
         .collect(Collectors.toSet());
 
-    assertEquals(
-        Set.of("app:view", "audit:read", "admin:sessions", "admin:roles"),
-        perms);
+    assertEquals(ADMIN_PERMISSIONS, perms);
   }
 
   @Test
-  @DisplayName("USER-only subject gets only app:view")
-  void userGetsOnlyAppView() {
+  @DisplayName("USER-only subject (editor) gets app:view + publications read/edit")
+  void userGetsEditorPermissions() {
     AppUser user = new AppUser(2L, "user", EnumSet.of(AuthorizationRole.USER));
 
     Set<String> perms = service.permissionsFor(user).permissionNames().stream()
         .map(PermissionName::value)
         .collect(Collectors.toSet());
 
-    assertEquals(Set.of("app:view"), perms);
+    assertEquals(EDITOR_PERMISSIONS, perms);
   }
 
   @Test
-  @DisplayName("ADMIN-only (no USER) still gets the full four — ADMIN's set is complete on its own")
-  void adminAloneGetsFullFour() {
+  @DisplayName("ADMIN-only (no USER) still gets the full eight — ADMIN's set is complete on its own")
+  void adminAloneGetsFullEight() {
     AppUser admin = new AppUser(3L, "admin-only",
         EnumSet.of(AuthorizationRole.ADMIN));
 
@@ -76,9 +81,7 @@ class AppAuthorizationServiceTest {
         .map(PermissionName::value)
         .collect(Collectors.toSet());
 
-    assertEquals(
-        Set.of("app:view", "audit:read", "admin:sessions", "admin:roles"),
-        perms);
+    assertEquals(ADMIN_PERMISSIONS, perms);
   }
 
   @Test

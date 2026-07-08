@@ -37,14 +37,18 @@ import static com.svenruppert.flow.security.permissions.AppPermission.ADMIN_ROLE
 import static com.svenruppert.flow.security.permissions.AppPermission.ADMIN_SESSIONS;
 import static com.svenruppert.flow.security.permissions.AppPermission.APP_VIEW;
 import static com.svenruppert.flow.security.permissions.AppPermission.AUDIT_READ;
+import static com.svenruppert.flow.security.permissions.AppPermission.MASTERDATA_EDIT;
+import static com.svenruppert.flow.security.permissions.AppPermission.PUBLICATIONS_EDIT;
+import static com.svenruppert.flow.security.permissions.AppPermission.PUBLICATIONS_IMPORT;
+import static com.svenruppert.flow.security.permissions.AppPermission.PUBLICATIONS_READ;
 
 /**
  * Role → permission table. SPI-registered via
  * {@link JSentinelAutoService @JSentinelAutoService}.
  *
  * <ul>
- *   <li>ADMIN: every permission</li>
- *   <li>USER: just app:view</li>
+ *   <li>ADMIN: every permission (incl. master-data + import)</li>
+ *   <li>USER (editor): app:view + publications read/edit</li>
  * </ul>
  */
 @JSentinelAutoService(AuthorizationService.class)
@@ -56,9 +60,15 @@ public class AppAuthorizationService
           APP_VIEW.permissionName(),
           AUDIT_READ.permissionName(),
           ADMIN_SESSIONS.permissionName(),
-          ADMIN_ROLES.permissionName()))
+          ADMIN_ROLES.permissionName(),
+          PUBLICATIONS_READ.permissionName(),
+          PUBLICATIONS_EDIT.permissionName(),
+          MASTERDATA_EDIT.permissionName(),
+          PUBLICATIONS_IMPORT.permissionName()))
       .put(roleName(AuthorizationRole.USER), Set.of(
-          APP_VIEW.permissionName()))
+          APP_VIEW.permissionName(),
+          PUBLICATIONS_READ.permissionName(),
+          PUBLICATIONS_EDIT.permissionName()))
       .build();
 
   @Override

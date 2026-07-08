@@ -31,7 +31,12 @@ public enum AppPermission {
   APP_VIEW("app:view"),
   AUDIT_READ("audit:read"),
   ADMIN_SESSIONS("admin:sessions"),
-  ADMIN_ROLES("admin:roles");
+  ADMIN_ROLES("admin:roles"),
+  // Publikationsverwaltung domain
+  PUBLICATIONS_READ("publications:read"),
+  PUBLICATIONS_EDIT("publications:edit"),
+  MASTERDATA_EDIT("masterdata:edit"),
+  PUBLICATIONS_IMPORT("publications:import");
 
   private final PermissionName permissionName;
 

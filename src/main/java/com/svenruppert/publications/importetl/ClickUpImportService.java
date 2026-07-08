@@ -18,6 +18,8 @@ package com.svenruppert.publications.importetl;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.svenruppert.dependencies.core.logger.HasLogger;
+import com.svenruppert.dependencies.core.net.HttpStatus;
+import com.svenruppert.dependencies.core.net.MediaType;
 import com.svenruppert.publications.model.Arbeitszustand;
 import com.svenruppert.publications.model.Issue;
 import com.svenruppert.publications.model.Tag;
@@ -62,11 +64,11 @@ public final class ClickUpImportService implements HasLogger {
     HttpRequest request = HttpRequest.newBuilder(
             URI.create(API_BASE + listId + "/task?include_closed=true"))
         .header("Authorization", token)
-        .header("Accept", "application/json")
+        .header("Accept", MediaType.APPLICATION_JSON.mime())
         .GET()
         .build();
     HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-    if (response.statusCode() != 200) {
+    if (response.statusCode() != HttpStatus.OK.code()) {
       throw new IllegalStateException(
           "ClickUp API returned HTTP " + response.statusCode());
     }

@@ -68,6 +68,16 @@ public final class AppStoragePaths {
     return baseDir().resolve("app").resolve("users");
   }
 
+  /**
+   * Publikationsverwaltung domain store — the {@code Datenwurzel} object
+   * graph (Issues + Publikationsorte). A separate Eclipse-Store instance,
+   * for the same reasons {@link #userDirectoryDir()} is separate from the
+   * framework store.
+   */
+  public static Path publicationsDir() {
+    return baseDir().resolve("app").resolve("publications");
+  }
+
   /** Bootstrap token file written on first start. */
   public static Path bootstrapTokenFile() {
     return frameworkStorageDir().resolve("bootstrap.token");

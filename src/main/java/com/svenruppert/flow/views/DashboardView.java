@@ -93,7 +93,34 @@ public class DashboardView extends Composite<VerticalLayout>
 
     root.add(buildHeader(displayName, roles));
     root.add(buildMetricsRow());
+    root.add(buildPublicationsRow());
     root.add(buildRecentActivityCard());
+  }
+
+  // ── Publications metrics (Publikationsverwaltung domain) ───────
+
+  private FlexLayout buildPublicationsRow() {
+    var repo = com.svenruppert.publications.persistence.PublicationsProvider.repository();
+    long issues = safeCount(() -> (long) repo.issues().size());
+    long teile = safeCount(() -> repo.issues().stream()
+        .mapToLong(i -> i.teile().size()).sum());
+    long pubs = safeCount(() -> (long) repo.alleVeroeffentlichungen().size());
+
+    FlexLayout row = new FlexLayout(
+        new MetricTile(VaadinIcon.GLOBE,
+            tr("dashboard.pub.issues", "Topics"), String.valueOf(issues),
+            tr("dashboard.pub.issues.hint", "Issues in the backlog")),
+        new MetricTile(VaadinIcon.FILE_TEXT_O,
+            tr("dashboard.pub.parts", "Parts"), String.valueOf(teile),
+            tr("dashboard.pub.parts.hint", "Across all topics")),
+        new MetricTile(VaadinIcon.NEWSPAPER,
+            tr("dashboard.pub.pubs", "Publications"), String.valueOf(pubs),
+            tr("dashboard.pub.pubs.hint", "All places and languages")));
+    row.setFlexWrap(FlexLayout.FlexWrap.WRAP);
+    row.getStyle().set("gap", "var(--lumo-space-l)");
+    row.getChildren().forEach(c ->
+        c.getElement().getStyle().set("flex", "1 1 200px"));
+    return row;
   }
 
   // ── Header ─────────────────────────────────────────────────────

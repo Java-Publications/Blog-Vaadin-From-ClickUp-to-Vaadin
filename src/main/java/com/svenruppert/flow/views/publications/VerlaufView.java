@@ -1,0 +1,136 @@
+/*
+ * Copyright © 2013 Sven Ruppert (sven.ruppert@gmail.com)
+ *
+ * Licensed under the EUPL, Version 1.2 (the "Licence");
+ * you may not use this file except in compliance with the Licence.
+ * You may obtain a copy of the Licence at:
+ *
+ *     https://joinup.ec.europa.eu/software/page/eupl
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the Licence is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the Licence for the specific language governing permissions and
+ * limitations under the Licence.
+ */
+
+package com.svenruppert.flow.views.publications;
+
+import com.svenruppert.flow.i18n.I18nSupport;
+import com.svenruppert.flow.security.roles.AuthorizationRole;
+import com.svenruppert.flow.security.roles.VisibleFor;
+import com.svenruppert.flow.views.MainLayout;
+import com.svenruppert.flow.views.ui.EmptyState;
+import com.svenruppert.flow.views.ui.PageHeader;
+import com.svenruppert.publications.model.Statusverlauf;
+import com.svenruppert.publications.model.Statuswechsel;
+import com.svenruppert.publications.persistence.PublicationsProvider;
+import com.svenruppert.publications.persistence.PublicationsRepository;
+import com.vaadin.flow.component.Composite;
+import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.html.Paragraph;
+import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.router.BeforeEvent;
+import com.vaadin.flow.router.HasUrlParameter;
+import com.vaadin.flow.router.Route;
+import com.vaadin.flow.router.WildcardParameter;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+/**
+ * V5 — Verlaufsansicht. Zeigt eine der drei Statusketten lückenlos, geordnet
+ * nach der Folgenummer — als Prüfpfad und sichtbarer Beleg der Orthogonalität.
+ * Rein lesend. Erreichbar über {@code verlauf/teil/&lt;id&gt;},
+ * {@code verlauf/akquise/&lt;id&gt;}, {@code verlauf/herstellung/&lt;id&gt;} oder ohne
+ * Pfad als Auswahlhinweis. Bedienter Prozess: P0015.
+ */
+@Route(value = VerlaufView.NAV, layout = MainLayout.class)
+@VisibleFor(AuthorizationRole.USER)
+public class VerlaufView extends Composite<VerticalLayout>
+    implements HasUrlParameter<String>, I18nSupport {
+
+  public static final String NAV = "verlauf";
+
+  private final transient PublicationsRepository repo = PublicationsProvider.repository();
+  private final Div body = new Div();
+
+  public VerlaufView() {
+    VerticalLayout root = getContent();
+    root.setSizeFull();
+    root.getStyle().set("gap", "var(--lumo-space-m)");
+    body.setSizeFull();
+    root.add(body);
+  }
+
+  @Override
+  public void setParameter(BeforeEvent event, @WildcardParameter String path) {
+    body.removeAll();
+    String[] parts = (path == null ? "" : path).split("/");
+    if (parts.length < 2) {
+      showEmpty();
+      return;
+    }
+    String kind = parts[0];
+    Optional<UUID> id = parse(parts[1]);
+    if (id.isEmpty()) {
+      showEmpty();
+      return;
+    }
+    switch (kind) {
+      case "teil" -> repo.findTeil(id.get())
+          .ifPresentOrElse(t -> show(tr("verlauf.dim.editorial", "Editorial state"), t.arbeit()),
+              this::showEmpty);
+      case "akquise" -> repo.findVeroeffentlichung(id.get())
+          .ifPresentOrElse(v -> show(tr("verlauf.dim.acquisition", "Acquisition"), v.akquise()),
+              this::showEmpty);
+      case "herstellung" -> repo.findVeroeffentlichung(id.get())
+          .ifPresentOrElse(v -> show(tr("verlauf.dim.production", "Production"), v.herstellung()),
+              this::showEmpty);
+      default -> showEmpty();
+    }
+  }
+
+  private static Optional<UUID> parse(String id) {
+    try {
+      return Optional.of(UUID.fromString(id));
+    } catch (IllegalArgumentException e) {
+      return Optional.empty();
+    }
+  }
+
+  private void showEmpty() {
+    body.add(new EmptyState(VaadinIcon.TIMER,
+        tr("verlauf.empty.title", "No history selected"),
+        tr("verlauf.empty.body", "Open a history from a part or a publication.")));
+  }
+
+  private void show(String dimension, Statusverlauf<?> verlauf) {
+    body.add(new PageHeader(
+        tr("verlauf.heading", "History — {0}", dimension),
+        tr("verlauf.subtitle", "Ordered by sequence number, not by timestamp.")));
+
+    List<Statuswechsel<?>> rows = new ArrayList<>(verlauf.ereignisse());
+    Grid<Statuswechsel<?>> grid = new Grid<>();
+    grid.addColumn(Statuswechsel::folge).setHeader(tr("verlauf.col.seq", "Seq")).setAutoWidth(true);
+    grid.addColumn(w -> String.valueOf(w.von())).setHeader(tr("verlauf.col.from", "From")).setAutoWidth(true);
+    grid.addColumn(w -> String.valueOf(w.nach())).setHeader(tr("verlauf.col.to", "To")).setAutoWidth(true);
+    grid.addColumn(w -> w.akteur() == null ? "—" : w.akteur()).setHeader(tr("verlauf.col.actor", "Actor")).setFlexGrow(1);
+    grid.addColumn(w -> w.zeitpunkt().toString()).setHeader(tr("verlauf.col.time", "Timestamp")).setAutoWidth(true);
+    grid.setItems(rows);
+    grid.setAllRowsVisible(true);
+    body.add(grid);
+
+    Paragraph note = new Paragraph(tr("verlauf.note",
+        "The order rests on the strictly ascending sequence number, not on the "
+            + "timestamp. The history is append-only; the current state is the "
+            + "target of the last event."));
+    note.getStyle().set("color", "var(--lumo-secondary-text-color)");
+    note.getStyle().set("font-size", "var(--lumo-font-size-s)");
+    body.add(note);
+  }
+}

@@ -129,6 +129,40 @@ class TopicsViewBrowserlessTest extends BrowserlessTest {
   }
 
   @Test
+  @DisplayName("the topic detail offers an Edit action (G)")
+  @SuppressWarnings("unchecked")
+  void detailOffersEdit() {
+    UI.getCurrent().navigate(TopicsView.class);
+    Grid<Issue> grid = (Grid<Issue>) $view(Grid.class).first();
+    Issue any = PublicationsProvider.repository().issues().stream().findFirst().orElseThrow();
+    grid.select(any);
+    assertTrue($view(Button.class).all().stream().map(Button::getText).anyMatch("Edit"::equals),
+        "the detail must offer an Edit action for the selected topic");
+  }
+
+  @Test
+  @DisplayName("an edited topic shows the new title and text in the detail (G)")
+  @SuppressWarnings("unchecked")
+  void editingUpdatesTitleAndText() {
+    Issue issue = PublicationsProvider.repository().createIssue("Before edit");
+    // the same mutations the Edit dialog performs on save
+    issue.setTitle("After edit");
+    issue.setDescription("Freshly edited text.");
+    PublicationsProvider.repository().persist();
+
+    UI.getCurrent().navigate(TopicsView.class);
+    Grid<Issue> grid = (Grid<Issue>) $view(Grid.class).first();
+    grid.select(issue);
+
+    assertTrue($view(com.vaadin.flow.component.html.H3.class).all().stream()
+            .anyMatch(h -> "After edit".equals(h.getText())),
+        "the detail must show the edited title");
+    assertTrue($view(com.vaadin.flow.component.html.Div.class).all().stream()
+            .anyMatch(d -> "Freshly edited text.".equals(d.getText())),
+        "the detail must show the edited original text");
+  }
+
+  @Test
   @DisplayName("selecting a topic with an original body renders the original text in the detail")
   @SuppressWarnings("unchecked")
   void detailShowsOriginalText() {

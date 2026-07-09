@@ -43,10 +43,12 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.FlexLayout;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.splitlayout.SplitLayout;
+import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.Route;
 
@@ -179,7 +181,12 @@ public class TopicsView extends Composite<VerticalLayout> implements I18nSupport
     }
 
     H3 title = new H3(issue.title());
-    detail.add(title);
+    title.getStyle().set("margin", "0");
+    Button edit = new Button(tr("themen.edit", "Edit"), e -> openEditIssueDialog(issue));
+    edit.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
+    HorizontalLayout titleRow = new HorizontalLayout(title, edit);
+    titleRow.setAlignItems(FlexComponent.Alignment.CENTER);
+    detail.add(titleRow);
     if (issue.origin() != null) {
       Span origin = new Span(tr("themen.detail.origin", "Origin: {0}", issue.origin()));
       origin.getStyle().set("color", "var(--lumo-secondary-text-color)");
@@ -299,6 +306,38 @@ public class TopicsView extends Composite<VerticalLayout> implements I18nSupport
     });
     Button cancel = new Button(tr("common.cancel", "Cancel"), e -> dialog.close());
     dialog.add(title);
+    dialog.getFooter().add(cancel, save);
+    dialog.open();
+    title.focus();
+  }
+
+  private void openEditIssueDialog(Issue issue) {
+    Dialog dialog = new Dialog();
+    dialog.setHeaderTitle(tr("themen.edit.title", "Edit topic"));
+    TextField title = new TextField(tr("themen.new.field", "Title"));
+    title.setWidthFull();
+    title.setValue(issue.title());
+    TextArea text = new TextArea(tr("themen.detail.original", "Original text"));
+    text.setWidthFull();
+    text.setMinHeight("10em");
+    text.setValue(issue.description() == null ? "" : issue.description());
+    Button save = primary(tr("common.save", "Save"), e -> {
+      String value = title.getValue() == null ? "" : title.getValue().strip();
+      if (value.isEmpty()) {
+        title.setInvalid(true);
+        title.setErrorMessage(tr("themen.new.required", "Title required"));
+        return;
+      }
+      issue.setTitle(value);
+      String body = text.getValue() == null ? "" : text.getValue();
+      issue.setDescription(body.isBlank() ? null : body);
+      repo.persist();
+      dialog.close();
+      showDetail(issue);
+      refreshMaster();
+    });
+    Button cancel = new Button(tr("common.cancel", "Cancel"), e -> dialog.close());
+    dialog.add(title, text);
     dialog.getFooter().add(cancel, save);
     dialog.open();
     title.focus();

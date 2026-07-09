@@ -72,6 +72,8 @@ public class TopicsView extends Composite<VerticalLayout> implements I18nSupport
 
   public static final String NAV = "themen";
 
+  private static final long serialVersionUID = 1L;
+
   private final transient PublicationsRepository repo = PublicationsProvider.repository();
 
   private final Grid<Issue> grid = new Grid<>(Issue.class, false);

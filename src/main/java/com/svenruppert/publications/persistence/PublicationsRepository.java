@@ -23,6 +23,7 @@ import com.svenruppert.publications.model.LanguageVersion;
 import com.svenruppert.publications.model.Part;
 import com.svenruppert.publications.model.Publication;
 import com.svenruppert.publications.model.PublicationPlace;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import java.util.List;
 import java.util.Objects;
@@ -145,6 +146,9 @@ public final class PublicationsRepository {
   }
 
   /** The live data root (for import/reconstruction). */
+  @SuppressFBWarnings(value = "EI_EXPOSE_REP",
+      justification = "by design — the import/reconstruction path adds aggregates to the live "
+          + "root and then calls persist(); a copy would not be persisted")
   public DataRoot dataRoot() {
     return root;
   }

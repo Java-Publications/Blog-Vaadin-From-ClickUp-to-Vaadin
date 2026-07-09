@@ -16,6 +16,8 @@
 
 package com.svenruppert.publications.importetl;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -32,6 +34,16 @@ public record ImportReport(
     int updated,
     int skipped,
     Map<String, Integer> statusDistribution) {
+
+  /**
+   * Defensively copies {@code statusDistribution} into an insertion-order-
+   * preserving unmodifiable map, so neither the caller's later mutations nor the
+   * accessor's callers can change the report's contents (the console renders the
+   * entries in the order the transformation produced them).
+   */
+  public ImportReport {
+    statusDistribution = Collections.unmodifiableMap(new LinkedHashMap<>(statusDistribution));
+  }
 
   public int total() {
     return created + updated + skipped;

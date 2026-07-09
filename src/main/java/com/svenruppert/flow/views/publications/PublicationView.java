@@ -70,6 +70,8 @@ public class PublicationView extends Composite<VerticalLayout>
 
   public static final String NAV = "veroeffentlichung";
 
+  private static final long serialVersionUID = 1L;
+
   private final transient PublicationsRepository repo = PublicationsProvider.repository();
   private final Div body = new Div();
   private transient Publication publication;

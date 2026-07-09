@@ -16,6 +16,8 @@
 
 package com.svenruppert.publications.model;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -55,6 +57,9 @@ public final class Part {
     return id;
   }
 
+  @SuppressFBWarnings(value = "EI_EXPOSE_REP",
+      justification = "intentional bidirectional aggregate navigation — a part shares its "
+          + "owning issue by identity within the object graph, never a copy")
   public Issue issue() {
     return issue;
   }

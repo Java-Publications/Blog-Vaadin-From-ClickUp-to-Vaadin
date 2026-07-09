@@ -49,6 +49,8 @@ public class PublicationListView extends Composite<VerticalLayout>
 
   public static final String NAV = "veroeffentlichungen";
 
+  private static final long serialVersionUID = 1L;
+
   private final transient PublicationsRepository repo = PublicationsProvider.repository();
   private final Grid<Publication> grid = new Grid<>(Publication.class, false);
   private final FilterBar filterBar = new FilterBar();

@@ -17,6 +17,7 @@
 package com.svenruppert.publications.persistence;
 
 import com.svenruppert.publications.model.DataRoot;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import java.util.Objects;
 
@@ -38,6 +39,9 @@ public final class InMemoryPublicationsPersistence implements PublicationsPersis
   }
 
   @Override
+  @SuppressFBWarnings(value = "EI_EXPOSE_REP",
+      justification = "by design — the test seam returns the live root that callers mutate in "
+          + "place, mirroring the EclipseStore persistence semantics")
   public synchronized DataRoot load() {
     return root;
   }

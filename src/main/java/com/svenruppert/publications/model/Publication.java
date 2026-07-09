@@ -16,6 +16,8 @@
 
 package com.svenruppert.publications.model;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 import java.time.LocalDate;
 import java.util.Objects;
 import java.util.UUID;
@@ -69,6 +71,9 @@ public final class Publication {
     return id;
   }
 
+  @SuppressFBWarnings(value = "EI_EXPOSE_REP",
+      justification = "intentional aggregate reference — the publication shares its language "
+          + "version by identity within the object graph, never a copy")
   public LanguageVersion version() {
     return version;
   }
@@ -78,6 +83,9 @@ public final class Publication {
     return version.language();
   }
 
+  @SuppressFBWarnings(value = "EI_EXPOSE_REP",
+      justification = "intentional aggregate reference — the publication shares its place by "
+          + "identity within the object graph, never a copy")
   public PublicationPlace place() {
     return place;
   }

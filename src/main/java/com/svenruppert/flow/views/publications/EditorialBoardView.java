@@ -53,6 +53,8 @@ public class EditorialBoardView extends Composite<VerticalLayout> implements I18
 
   public static final String NAV = "redaktion";
 
+  private static final long serialVersionUID = 1L;
+
   private final transient PublicationsRepository repo = PublicationsProvider.repository();
   private final FlexLayout board = new FlexLayout();
 

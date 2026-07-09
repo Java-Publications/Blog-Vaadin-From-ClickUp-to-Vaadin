@@ -59,6 +59,8 @@ public class ImportView extends Composite<VerticalLayout> implements I18nSupport
 
   public static final String NAV = "import";
 
+  private static final long serialVersionUID = 1L;
+
   private final transient ClickUpImportService service = new ClickUpImportService();
   private final transient PublicationsRepository repo = PublicationsProvider.repository();
   private final transient RawImportStore rawStore = new RawImportStore(AppStoragePaths.importDir());

@@ -19,6 +19,7 @@ package com.svenruppert.publications.persistence;
 import com.svenruppert.dependencies.core.logger.HasLogger;
 import com.svenruppert.flow.security.storage.AppStoragePaths;
 import com.svenruppert.publications.model.DataRoot;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.eclipse.store.storage.embedded.types.EmbeddedStorage;
 import org.eclipse.store.storage.embedded.types.EmbeddedStorageManager;
 
@@ -59,12 +60,18 @@ public final class EclipseStorePublicationsPersistence
   }
 
   @Override
+  @SuppressFBWarnings(value = "EI_EXPOSE_REP",
+      justification = "by design — EclipseStore persists the live object graph; the repository "
+          + "mutates that same root in place and stores it back, so a copy would defeat persistence")
   public synchronized DataRoot load() {
     ensureOpen();
     return root;
   }
 
   @Override
+  @SuppressFBWarnings(value = "EI_EXPOSE_REP2",
+      justification = "by design — the store holds the caller's live root so subsequent in-place "
+          + "mutations are what gets persisted; copying it would break the persistence contract")
   public synchronized void save(DataRoot root) {
     ensureOpen();
     Objects.requireNonNull(root, "root");

@@ -53,6 +53,8 @@ public class PublicationPlacesView extends Composite<VerticalLayout> implements 
 
   public static final String NAV = "orte";
 
+  private static final long serialVersionUID = 1L;
+
   private final transient PublicationsRepository repo = PublicationsProvider.repository();
   private final Grid<PublicationPlace> grid = new Grid<>(PublicationPlace.class, false);
 

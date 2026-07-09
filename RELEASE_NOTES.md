@@ -2,6 +2,35 @@
 
 ## Unreleased
 
+## 00.31.00 — 2026-07-09
+
+Import robustness & editorial workspace — bug fixes and features reported against
+the running app.
+
+- **Import no longer capped at 100 tasks**: the ClickUp extract paginates through
+  all pages (`?page=0,1,…` until `last_page`), concatenating the raw task nodes so
+  every original field is preserved. Lists with more than 100 tasks now import in
+  full.
+- **Async import console**: extract and transform/load run off the UI thread with
+  server push — a per-action progress bar (indeterminate while extracting,
+  determinate over the tasks while loading), a scrolling timestamped log, and
+  disabled buttons while running. Previously the blocking calls froze the UI with
+  no feedback.
+- **Import result panel**: after a load, a summary (imported / already-present /
+  topics-in-workspace) with a button that jumps to the topic workspace, where the
+  imported topics land — resolving the "no data imported" confusion.
+- **Original text on detail**: the import captures each task's original body
+  (`text_content`/markdown) onto the topic, and the topic-workspace detail panel
+  renders it when a topic is selected.
+- **Editorial table view**: the editorial board gains a table view — a tree
+  grouped by editorial state, within each group sorted by topic name — toggled
+  against the Kanban board.
+- **Editorial Kanban cleanup**: the redundant per-card state selector is removed;
+  the column already denotes the state and drag&drop changes it.
+- **SpotBugs clean**: all 17 findings resolved (serialVersionUID on the views,
+  defensive copy on `ImportReport`, justified suppressions on the intentional
+  object-graph exposures); `spotbugs:check` reports zero.
+
 ## 00.30.00 — 2026-07-09
 
 Design alignment with the prototype.

@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## 00.23.00 — 2026-07-09
+
+Import hardening — the ClickUp extract is now cached on disk.
+
+- **Local raw extract + timestamp**: a new `RawImportStore` (under
+  `AppStoragePaths.importDir()`, `app/import`) persists the last raw ClickUp
+  JSON and its extraction time. The import console adopts the cached extract on
+  open, so a transform/load can run — and be repeated — against local data
+  without re-fetching from the network, surviving a restart; the console shows
+  when the extract was taken. Extraction (network) and persistence stay
+  separated, so the store is unit-tested with no network via a `@TempDir`.
+
 ## 00.22.00 — 2026-07-09
 
 Interaction cycle — drag&drop and a global filter for the publications workspace.

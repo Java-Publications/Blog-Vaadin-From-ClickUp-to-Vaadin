@@ -12,7 +12,7 @@
     </parent>
 
     <artifactId>flow-template</artifactId>
-    <version>00.33.00-SNAPSHOT</version>
+    <version>00.33.00</version>
     <packaging>war</packaging>
 
 

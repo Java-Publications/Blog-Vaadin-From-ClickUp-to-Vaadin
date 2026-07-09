@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+## 00.33.00 — 2026-07-09
+
+Topic/part editing overhaul — a reusable editor shared by the topic workspace and
+the editorial board.
+
+- **Resizable edit dialog**: the editor is width-resizable and draggable, no
+  longer fixed.
+- **Markdown editor**: the original text is edited with a markdown editor
+  switchable between a raw *Syntax* view and a rendered *Visual* preview (the free
+  Vaadin Markdown component — no Pro dependency).
+- **Prominent status control**: for a part, the editor surfaces an always-visible
+  editorial-status selector, so changing the state is obvious and no longer
+  depends on drag&drop; the topic workspace also gains a status filter.
+- **Double-click to edit on the editorial board**: double-clicking a Kanban card
+  or a table row opens the editor for that part's topic.
+- **Tag styling**: in the topic detail, tags move into a labelled, spaced section
+  instead of sticking to the text.
+
 ## 00.32.00 — 2026-07-09
 
 - **Editable topic entries**: the topic workspace detail gains an "Edit" action

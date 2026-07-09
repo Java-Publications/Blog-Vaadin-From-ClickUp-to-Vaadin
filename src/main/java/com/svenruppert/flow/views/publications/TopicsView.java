@@ -172,7 +172,7 @@ public class TopicsView extends Composite<VerticalLayout> implements I18nSupport
     FlexLayout tags = new FlexLayout();
     tags.setFlexWrap(FlexLayout.FlexWrap.WRAP);
     tags.getStyle().set("gap", "var(--lumo-space-xs)");
-    issue.tags().forEach(t -> tags.add(PublicationUi.tag(t.name())));
+    issue.tags().forEach(t -> tags.add(removableTag(issue, t)));
     Button addTag = new Button(tr("themen.tag.add", "+ Tag"), e -> openAddTagDialog(issue));
     addTag.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
     tags.add(addTag);
@@ -207,6 +207,23 @@ public class TopicsView extends Composite<VerticalLayout> implements I18nSupport
         e -> navigate("verlauf/teil/" + part.id()));
     history.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
     return new HorizontalLayout(open, history);
+  }
+
+  /** A tag badge carrying a ✕ that removes the tag (P0002). */
+  private Span removableTag(Issue issue, Tag tag) {
+    Span badge = PublicationUi.tag(tag.name());
+    Button remove = new Button(VaadinIcon.CLOSE_SMALL.create(), e -> {
+      issue.removeTag(tag);
+      repo.persist();
+      showDetail(issue);
+      tagFilter.setItems(allTags());
+      refreshMaster();
+    });
+    remove.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE, ButtonVariant.LUMO_SMALL);
+    remove.getElement().setAttribute("aria-label",
+        tr("themen.tag.remove", "Remove tag {0}", tag.name()));
+    badge.add(remove);
+    return badge;
   }
 
   // ── dialogs ──────────────────────────────────────────────────────────────

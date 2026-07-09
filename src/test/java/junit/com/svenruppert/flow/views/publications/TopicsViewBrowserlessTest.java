@@ -115,4 +115,22 @@ class TopicsViewBrowserlessTest extends BrowserlessTest {
     assertEquals("Kein Thema gewählt", $view(com.vaadin.flow.component.html.H3.class).first().getText(),
         "the DE translation bundle must resolve, not fall back to English");
   }
+
+  @Test
+  @DisplayName("each tag in the selected topic renders a remove (✕) control")
+  @SuppressWarnings("unchecked")
+  void tagsCanBeRemoved() {
+    UI.getCurrent().navigate(TopicsView.class);
+    Grid<Issue> grid = (Grid<Issue>) $view(Grid.class).first();
+    Issue tagged = PublicationsProvider.repository().issues().stream()
+        .filter(i -> !i.tags().isEmpty()).findFirst().orElseThrow();
+    grid.select(tagged);
+    long removeControls = $view(Button.class).all().stream()
+        .filter(b -> {
+          String al = b.getElement().getAttribute("aria-label");
+          return al != null && al.startsWith("Remove tag");
+        }).count();
+    assertEquals(tagged.tags().size(), removeControls,
+        "one remove control per tag on the selected topic");
+  }
 }

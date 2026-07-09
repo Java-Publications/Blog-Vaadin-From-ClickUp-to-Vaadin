@@ -75,8 +75,6 @@ public class EditorialBoardView extends Composite<VerticalLayout> implements I18
 
   /** The part currently being dragged; set on drag start, cleared on drag end/drop. */
   private transient Part draggedPart;
-  /** The parts currently in view (after the global filter), feeding the table tree. */
-  private transient List<Part> currentParts = List.of();
 
   public EditorialBoardView() {
     VerticalLayout root = getContent();
@@ -117,17 +115,12 @@ public class EditorialBoardView extends Composite<VerticalLayout> implements I18
   }
 
   private void refresh() {
-    // Honour the global navbar search (F6): only parts of matching issues.
-    PublicationsFilter filter = PublicationsFilter.current();
-    currentParts = repo.issues().stream()
-        .filter(filter::matchesTitle)
-        .flatMap(i -> i.parts().stream())
-        .toList();
+    List<Part> all = filteredParts();
 
     // ── Kanban board ──
     board.removeAll();
     for (EditorialState state : EditorialState.values()) {
-      List<Part> inColumn = currentParts.stream()
+      List<Part> inColumn = all.stream()
           .filter(p -> p.editorialState() == state)
           .toList();
       board.add(column(state, inColumn));
@@ -136,13 +129,22 @@ public class EditorialBoardView extends Composite<VerticalLayout> implements I18
     // ── Table (grouped by status, sorted by name) ──
     List<BoardRow> groups = new ArrayList<>();
     for (EditorialState state : EditorialState.values()) {
-      List<Part> inState = partsInStateSortedByName(currentParts, state);
+      List<Part> inState = partsInStateSortedByName(all, state);
       if (!inState.isEmpty()) {
         groups.add(new GroupRow(state, inState.size()));
       }
     }
     table.setItems(groups, this::childrenOf);
     table.expand(groups);
+  }
+
+  /** Parts of issues matching the global navbar search (F6) — recomputed on demand. */
+  private List<Part> filteredParts() {
+    PublicationsFilter filter = PublicationsFilter.current();
+    return repo.issues().stream()
+        .filter(filter::matchesTitle)
+        .flatMap(i -> i.parts().stream())
+        .toList();
   }
 
   // ── Kanban board ─────────────────────────────────────────────────────────
@@ -217,7 +219,7 @@ public class EditorialBoardView extends Composite<VerticalLayout> implements I18
 
   private Collection<BoardRow> childrenOf(BoardRow row) {
     if (row instanceof GroupRow group) {
-      return partsInStateSortedByName(currentParts, group.state()).stream()
+      return partsInStateSortedByName(filteredParts(), group.state()).stream()
           .map(part -> (BoardRow) new PartRow(part))
           .toList();
     }

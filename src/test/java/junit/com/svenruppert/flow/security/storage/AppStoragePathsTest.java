@@ -50,6 +50,12 @@ class AppStoragePathsTest {
   }
 
   @Test
+  void importIsBaseSlashAppImport() {
+    assertEquals(AppStoragePaths.baseDir().resolve("app").resolve("import"),
+        AppStoragePaths.importDir());
+  }
+
+  @Test
   void bootstrapTokenIsUnderFrameworkStorage() {
     assertEquals(AppStoragePaths.frameworkStorageDir().resolve("bootstrap.token"),
         AppStoragePaths.bootstrapTokenFile());
@@ -61,6 +67,7 @@ class AppStoragePathsTest {
     assertTrue(AppStoragePaths.publicationsDir().startsWith(base));
     assertTrue(AppStoragePaths.userDirectoryDir().startsWith(base));
     assertTrue(AppStoragePaths.frameworkStorageDir().startsWith(base));
+    assertTrue(AppStoragePaths.importDir().startsWith(base));
     // publications and users are siblings under the same app/ directory
     assertEquals(AppStoragePaths.userDirectoryDir().getParent(),
         AppStoragePaths.publicationsDir().getParent());

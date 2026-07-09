@@ -17,11 +17,13 @@
 package com.svenruppert.flow.views.publications;
 
 import com.svenruppert.flow.i18n.I18nSupport;
+import com.svenruppert.flow.security.storage.AppStoragePaths;
 import com.svenruppert.flow.views.MainLayout;
 import com.svenruppert.flow.views.ui.PageHeader;
 import com.svenruppert.jsentinel.authorization.annotations.RequiresPermission;
 import com.svenruppert.publications.importetl.ClickUpImportService;
 import com.svenruppert.publications.importetl.ImportReport;
+import com.svenruppert.publications.importetl.RawImportStore;
 import com.svenruppert.publications.persistence.PublicationsProvider;
 import com.svenruppert.publications.persistence.PublicationsRepository;
 import com.vaadin.flow.component.Composite;
@@ -38,6 +40,10 @@ import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.Route;
 
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
 import java.util.Map;
 
 /**
@@ -55,10 +61,12 @@ public class ImportView extends Composite<VerticalLayout> implements I18nSupport
 
   private final transient ClickUpImportService service = new ClickUpImportService();
   private final transient PublicationsRepository repo = PublicationsProvider.repository();
+  private final transient RawImportStore rawStore = new RawImportStore(AppStoragePaths.importDir());
 
   private final PasswordField token = new PasswordField(tr("import.token", "ClickUp API token"));
   private final TextField listId = new TextField(tr("import.list", "List id"));
   private final ProgressBar progress = new ProgressBar();
+  private final Span lastExtraction = new Span();
   private final Div log = new Div();
   private final Grid<Map.Entry<String, Integer>> distribution = new Grid<>();
 
@@ -88,6 +96,10 @@ public class ImportView extends Composite<VerticalLayout> implements I18nSupport
     progress.setVisible(false);
     root.add(progress);
 
+    lastExtraction.getStyle().set("color", "var(--lumo-secondary-text-color)");
+    lastExtraction.getStyle().set("font-size", "var(--lumo-font-size-s)");
+    root.add(lastExtraction);
+
     log.getStyle().set("color", "var(--lumo-secondary-text-color)");
     log.setText(tr("import.none", "No run yet. Start with ①."));
     root.add(log);
@@ -101,6 +113,34 @@ public class ImportView extends Composite<VerticalLayout> implements I18nSupport
     root.add(distribution);
 
     root.setFlexGrow(1, distribution);
+
+    loadLastRaw();
+  }
+
+  /**
+   * On open, adopts the last raw extract cached on disk (if any) so a
+   * transform/load can run against it without re-fetching — the import survives
+   * a restart — and shows when that extract was taken.
+   */
+  private void loadLastRaw() {
+    rawStore.loadRaw().ifPresent(raw -> {
+      lastRaw = raw;
+      log.setText(tr("import.loadedraw",
+          "Loaded {0} bytes from the last local extract — run ② to load.", raw.length()));
+    });
+    renderLastExtraction();
+  }
+
+  private void renderLastExtraction() {
+    lastExtraction.setText(rawStore.lastExtraction()
+        .map(when -> tr("import.lastextract", "Last extraction: {0}", formatTimestamp(when)))
+        .orElseGet(() -> tr("import.lastextract.never", "No local extract yet.")));
+  }
+
+  private static String formatTimestamp(Instant when) {
+    return DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM)
+        .withZone(ZoneId.systemDefault())
+        .format(when);
   }
 
   private void onExtract() {
@@ -113,6 +153,9 @@ public class ImportView extends Composite<VerticalLayout> implements I18nSupport
     progress.setVisible(true);
     try {
       lastRaw = service.extract(t, l);
+      // Persist the raw extract locally so the transform/load survives a restart.
+      rawStore.save(lastRaw, Instant.now());
+      renderLastExtraction();
       log.setText(tr("import.extracted", "Extracted {0} bytes. Now run ②.", lastRaw.length()));
     } catch (Exception ex) {
       Notification.show(tr("import.extractfail", "Extract failed: {0}", String.valueOf(ex.getMessage())));

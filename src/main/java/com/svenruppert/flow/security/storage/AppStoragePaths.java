@@ -69,13 +69,21 @@ public final class AppStoragePaths {
   }
 
   /**
-   * Publikationsverwaltung domain store — the {@code Datenwurzel} object
-   * graph (Issues + Publikationsorte). A separate Eclipse-Store instance,
-   * for the same reasons {@link #userDirectoryDir()} is separate from the
-   * framework store.
+   * Publications domain store — the {@code DataRoot} object graph (Issues +
+   * publication places). A separate Eclipse-Store instance, for the same
+   * reasons {@link #userDirectoryDir()} is separate from the framework store.
    */
   public static Path publicationsDir() {
     return baseDir().resolve("app").resolve("publications");
+  }
+
+  /**
+   * Import staging directory — holds the last raw ClickUp extract (its JSON plus
+   * a timestamp marker) so a transform/load can run against locally cached data
+   * and survive a restart without re-fetching from the network.
+   */
+  public static Path importDir() {
+    return baseDir().resolve("app").resolve("import");
   }
 
   /** Bootstrap token file written on first start. */

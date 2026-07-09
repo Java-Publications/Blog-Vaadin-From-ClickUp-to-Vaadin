@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 00.20.01 — 2026-07-09
+
+Refactor-only patch. The publications code (domain, persistence, ETL, views and
+tests) is anglicized: class names, identifiers, comments/Javadoc and log
+messages are now American English, per the workspace source-language rule. Key
+renames include `Sprache→Language`, `Veroeffentlichung→Publication`,
+`Sprachfassung→LanguageVersion`, `Publikationsort→PublicationPlace`,
+`Teil→Part`, `Statusverlauf→StatusHistory`, and the corresponding views
+(`ThemenView→TopicsView`, …). Behaviour is unchanged — the full 259-test suite
+stays green; route path strings and i18n keys are untouched.
+
 ## 00.20.00 — 2026-07-08
 
 First cut of the **Publikationsverwaltung MVP** — the ClickUp-replacing

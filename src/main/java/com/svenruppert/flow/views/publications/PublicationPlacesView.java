@@ -20,8 +20,8 @@ import com.svenruppert.flow.i18n.I18nSupport;
 import com.svenruppert.flow.views.MainLayout;
 import com.svenruppert.flow.views.ui.PageHeader;
 import com.svenruppert.jsentinel.authorization.annotations.RequiresPermission;
-import com.svenruppert.publications.model.Publikationsort;
-import com.svenruppert.publications.model.Sprache;
+import com.svenruppert.publications.model.Language;
+import com.svenruppert.publications.model.PublicationPlace;
 import com.svenruppert.publications.persistence.PublicationsProvider;
 import com.svenruppert.publications.persistence.PublicationsRepository;
 import com.vaadin.flow.component.Composite;
@@ -41,22 +41,22 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * V6 — Publikationsorte (Stammdaten). Pflegt Name und unterstützte Sprachen der
- * Orte. Das Entfernen einer Sprache verlangt Umsicht: bestehende
- * {@link com.svenruppert.publications.model.Veroeffentlichung}en in dieser
- * Sprache an diesem Ort dürfen nicht in einen unzulässigen Zustand geraten —
- * die Maske blockt das mit einem Hinweis. Bedienter Prozess: P0014.
+ * V6 — Publication places (master data). Maintains name and supported languages
+ * of the places. Removing a language demands care: existing
+ * {@link com.svenruppert.publications.model.Publication}s in that language at that
+ * place must not end up in an inadmissible state — the view blocks that with a
+ * notification. Served process: P0014.
  */
-@Route(value = PublikationsorteView.NAV, layout = MainLayout.class)
+@Route(value = PublicationPlacesView.NAV, layout = MainLayout.class)
 @RequiresPermission("masterdata:edit")
-public class PublikationsorteView extends Composite<VerticalLayout> implements I18nSupport {
+public class PublicationPlacesView extends Composite<VerticalLayout> implements I18nSupport {
 
   public static final String NAV = "orte";
 
   private final transient PublicationsRepository repo = PublicationsProvider.repository();
-  private final Grid<Publikationsort> grid = new Grid<>(Publikationsort.class, false);
+  private final Grid<PublicationPlace> grid = new Grid<>(PublicationPlace.class, false);
 
-  public PublikationsorteView() {
+  public PublicationPlacesView() {
     VerticalLayout root = getContent();
     root.setSizeFull();
     root.getStyle().set("gap", "var(--lumo-space-m)");
@@ -66,8 +66,8 @@ public class PublikationsorteView extends Composite<VerticalLayout> implements I
         tr("orte.subtitle", "Master data — name and supported languages."))
         .withActions(primary(tr("orte.new", "+ Place"), () -> openEditor(null))));
 
-    grid.addColumn(Publikationsort::name).setHeader(tr("orte.col.name", "Place")).setFlexGrow(1);
-    grid.addColumn(o -> o.unterstuetzteSprachen().stream().map(Enum::name)
+    grid.addColumn(PublicationPlace::name).setHeader(tr("orte.col.name", "Place")).setFlexGrow(1);
+    grid.addColumn(o -> o.supportedLanguages().stream().map(Enum::name)
         .sorted().reduce((a, b) -> a + ", " + b).orElse("—"))
         .setHeader(tr("orte.col.langs", "Supported languages")).setAutoWidth(true);
     grid.addColumn(this::inUse).setHeader(tr("orte.col.inuse", "In use")).setAutoWidth(true);
@@ -83,17 +83,17 @@ public class PublikationsorteView extends Composite<VerticalLayout> implements I
     refresh();
   }
 
-  private long inUse(Publikationsort ort) {
-    return repo.alleVeroeffentlichungen().stream()
-        .filter(v -> v.ort().id().equals(ort.id()))
+  private long inUse(PublicationPlace place) {
+    return repo.allPublications().stream()
+        .filter(v -> v.place().id().equals(place.id()))
         .count();
   }
 
   private void refresh() {
-    grid.setItems(repo.publikationsorte());
+    grid.setItems(repo.publicationPlaces());
   }
 
-  private void openEditor(Publikationsort existing) {
+  private void openEditor(PublicationPlace existing) {
     Dialog dialog = new Dialog();
     dialog.setHeaderTitle(existing == null
         ? tr("orte.new.title", "New place")
@@ -101,56 +101,56 @@ public class PublikationsorteView extends Composite<VerticalLayout> implements I
 
     TextField name = new TextField(tr("orte.field.name", "Name"));
     name.setWidthFull();
-    MultiSelectComboBox<Sprache> sprachen =
+    MultiSelectComboBox<Language> languages =
         new MultiSelectComboBox<>(tr("orte.field.langs", "Supported languages"));
-    sprachen.setItems(Arrays.asList(Sprache.values()));
-    sprachen.setItemLabelGenerator(Enum::name);
-    sprachen.setWidthFull();
+    languages.setItems(Arrays.asList(Language.values()));
+    languages.setItemLabelGenerator(Enum::name);
+    languages.setWidthFull();
 
     if (existing != null) {
       name.setValue(existing.name());
-      sprachen.setValue(existing.unterstuetzteSprachen());
+      languages.setValue(existing.supportedLanguages());
     }
 
     Button save = primary(tr("common.save", "Save"), () -> {
       String value = name.getValue() == null ? "" : name.getValue().strip();
-      Set<Sprache> selected = sprachen.getValue();
+      Set<Language> selected = languages.getValue();
       if (value.isEmpty() || selected.isEmpty()) {
         name.setInvalid(value.isEmpty());
         Notification.show(tr("orte.required", "Name and at least one language are required."));
         return;
       }
       if (existing == null) {
-        repo.neuerPublikationsort(value, new LinkedHashSet<>(selected));
+        repo.createPublicationPlace(value, new LinkedHashSet<>(selected));
       } else if (!apply(existing, value, selected)) {
         return; // blocked by the language-in-use guard
       }
       dialog.close();
       refresh();
     });
-    dialog.add(name, sprachen);
+    dialog.add(name, languages);
     dialog.getFooter().add(new Button(tr("common.cancel", "Cancel"), e -> dialog.close()), save);
     dialog.open();
     name.focus();
   }
 
   /** @return false when a removal was blocked because the language is in use. */
-  private boolean apply(Publikationsort ort, String name, Set<Sprache> desired) {
-    List<Sprache> removed = ort.unterstuetzteSprachen().stream()
-        .filter(s -> !desired.contains(s))
+  private boolean apply(PublicationPlace place, String name, Set<Language> desired) {
+    List<Language> removed = place.supportedLanguages().stream()
+        .filter(l -> !desired.contains(l))
         .toList();
-    for (Sprache s : removed) {
-      boolean used = repo.alleVeroeffentlichungen().stream()
-          .anyMatch(v -> v.ort().id().equals(ort.id()) && v.sprache() == s);
+    for (Language l : removed) {
+      boolean used = repo.allPublications().stream()
+          .anyMatch(v -> v.place().id().equals(place.id()) && v.language() == l);
       if (used) {
         Notification.show(tr("orte.inuse.block",
-            "Cannot remove {0}: publications in that language exist at this place.", s.name()));
+            "Cannot remove {0}: publications in that language exist at this place.", l.name()));
         return false;
       }
     }
-    ort.setName(name);
-    removed.forEach(ort::entferneSprache);
-    desired.forEach(ort::ergaenzeSprache);
+    place.setName(name);
+    removed.forEach(place::removeLanguage);
+    desired.forEach(place::addLanguage);
     repo.persist();
     return true;
   }

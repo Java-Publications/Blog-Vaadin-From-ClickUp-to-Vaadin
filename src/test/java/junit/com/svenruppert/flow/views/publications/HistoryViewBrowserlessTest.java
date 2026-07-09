@@ -18,17 +18,18 @@ package junit.com.svenruppert.flow.views.publications;
 
 import com.svenruppert.flow.security.model.AppUser;
 import com.svenruppert.flow.security.roles.AuthorizationRole;
-import com.svenruppert.flow.views.publications.ThemenView;
+import com.svenruppert.flow.views.publications.HistoryView;
 import com.svenruppert.jsentinel.authorization.api.SubjectStores;
+import com.svenruppert.publications.model.EditorialState;
 import com.svenruppert.publications.model.Issue;
-import com.svenruppert.publications.model.Tag;
+import com.svenruppert.publications.model.Part;
 import com.svenruppert.publications.persistence.InMemoryPublicationsPersistence;
 import com.svenruppert.publications.persistence.PublicationsProvider;
 import com.svenruppert.publications.persistence.PublicationsRepository;
 import com.vaadin.browserless.BrowserlessTest;
 import com.vaadin.flow.component.UI;
-import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H3;
 import junit.com.svenruppert.flow.TestSupport;
 import org.junit.jupiter.api.AfterEach;
@@ -38,13 +39,15 @@ import org.junit.jupiter.api.Test;
 
 import java.util.EnumSet;
 import java.util.Locale;
-import java.util.stream.Collectors;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@DisplayName("ThemenView (V1) — master issue grid + detail")
-class ThemenViewBrowserlessTest extends BrowserlessTest {
+@DisplayName("HistoryView (V5) — append-only history, ordered by sequence")
+class HistoryViewBrowserlessTest extends BrowserlessTest {
+
+  private UUID partId;
 
   @BeforeEach
   void setUp() {
@@ -55,11 +58,12 @@ class ThemenViewBrowserlessTest extends BrowserlessTest {
     }
     PublicationsRepository repo =
         new PublicationsRepository(new InMemoryPublicationsPersistence());
-    repo.neuesIssue("Blog – Navigation – Koppelnavigation");
-    Issue testing = repo.neuesIssue("Blog – Testing – JUnit 5 Extensions");
-    testing.addTag(new Tag("JUnit"));
-    testing.addTeil();
+    Issue issue = repo.createIssue("Blog – Navigation – Coupled navigation");
+    Part part = issue.addPart();
+    part.changeState(EditorialState.IN_PLANNING, "Sven");
+    part.changeState(EditorialState.IN_PROGRESS, "Editorial");
     repo.persist();
+    partId = part.id();
     PublicationsProvider.setRepository(repo);
 
     SubjectStores.subjectStore().setCurrentSubject(
@@ -74,37 +78,19 @@ class ThemenViewBrowserlessTest extends BrowserlessTest {
   }
 
   @Test
-  @DisplayName("NAV constant is 'themen'")
-  void navConstant() {
-    assertEquals("themen", ThemenView.NAV);
-  }
-
-  @Test
-  @DisplayName("heading is rendered")
-  void headingPresent() {
-    navigate(ThemenView.class);
-    H3 empty = $view(H3.class).first();
-    // PageHeader title is an H1; the first H3 is the empty-state title until a row is selected
-    assertEquals("No topic selected", empty.getText());
-  }
-
-  @Test
-  @DisplayName("master grid lists both seeded issues, sorted by title")
-  void masterGridListsIssues() {
-    navigate(ThemenView.class);
+  @DisplayName("part history lists every status change")
+  void listsPartHistory() {
+    UI.getCurrent().navigate(HistoryView.class, "teil/" + partId);
+    assertTrue($view(H1.class).first().getText().startsWith("History"));
     Grid<?> grid = $view(Grid.class).first();
-    assertEquals(3, grid.getColumns().size(), "title, parts, status columns");
+    assertEquals(5, grid.getColumns().size(), "Seq, From, To, Actor, Timestamp");
     assertEquals(2, grid.getListDataView().getItemCount());
   }
 
   @Test
-  @DisplayName("toolbar has a '+ Topic' button")
-  void createTopicButtonPresent() {
-    navigate(ThemenView.class);
-    assertTrue($view(Button.class).all().stream()
-            .map(Button::getText)
-            .collect(Collectors.toList())
-            .contains("+ Topic"),
-        "the header must offer a '+ Topic' action");
+  @DisplayName("no path → empty state")
+  void emptyWithoutPath() {
+    UI.getCurrent().navigate(HistoryView.class);
+    assertEquals("No history selected", $view(H3.class).first().getText());
   }
 }

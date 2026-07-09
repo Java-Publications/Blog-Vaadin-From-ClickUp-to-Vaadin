@@ -17,14 +17,21 @@
 package com.svenruppert.publications.model;
 
 /**
- * Herstellungs-Status einer {@link Veroeffentlichung} — die zweite
- * orthogonale Statusdimension. {@code PLANNED → PREPARED → PUBLISHED};
- * {@code UPDATE_NEEDED} ist ein Rücksprung nach dem Erscheinen, kein
- * regulärer Vorwärtsschritt.
+ * Acquisition (reduced sales) status of a {@link Publication} — the third
+ * orthogonal status dimension, without commercial billing. Fixed order with
+ * free transitions; several terminal states.
  */
-public enum Veroeffentlichungsstatus {
-  PLANNED,
-  PREPARED,
-  PUBLISHED,
-  UPDATE_NEEDED
+public enum AcquisitionStatus {
+  REQUESTED,
+  OFFERED,
+  ACCEPTED,
+  REVIEW,
+  DONE,
+  SKIPPED,
+  CANCELLED;
+
+  /** The terminal states of this dimension. */
+  public boolean isTerminal() {
+    return this == DONE || this == SKIPPED || this == CANCELLED;
+  }
 }

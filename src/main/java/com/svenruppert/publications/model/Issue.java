@@ -25,56 +25,56 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Das Thema und die fachliche Klammer, etwa „Blog – Navigation –
- * Koppelnavigation". Trägt die Technologie-/Themen-Tags und seine geordnete
- * Folge von {@link Teil}en. Selbst zustandslos — es ist die Klammer, unter der
- * sich alles Weitere sammelt. {@code herkunft} vermerkt die externe Kennung
- * (z. B. ClickUp-Task) für den idempotenten Import.
+ * The topic and the subject bracket, e.g. "Blog – Navigation – Coupled
+ * navigation". Carries the technology/topic tags and its ordered sequence of
+ * {@link Part}s. It is stateless itself — it is the bracket under which
+ * everything else gathers. {@code origin} records the external id (e.g. a ClickUp
+ * task) for the idempotent import.
  */
 public final class Issue {
 
   private final UUID id;
-  private String titel;
+  private String title;
   private final Set<Tag> tags = new LinkedHashSet<>();
-  private final List<Teil> teile = new ArrayList<>();
-  private String herkunft;
+  private final List<Part> parts = new ArrayList<>();
+  private String origin;
 
-  public Issue(String titel) {
-    this(UUID.randomUUID(), titel);
+  public Issue(String title) {
+    this(UUID.randomUUID(), title);
   }
 
-  public Issue(UUID id, String titel) {
+  public Issue(UUID id, String title) {
     this.id = Objects.requireNonNull(id, "id");
-    setTitel(titel);
+    setTitle(title);
   }
 
   public UUID id() {
     return id;
   }
 
-  public String titel() {
-    return titel;
+  public String title() {
+    return title;
   }
 
-  public void setTitel(String titel) {
-    Objects.requireNonNull(titel, "titel");
-    String stripped = titel.strip();
+  public void setTitle(String title) {
+    Objects.requireNonNull(title, "title");
+    String stripped = title.strip();
     if (stripped.isEmpty()) {
-      throw new IllegalArgumentException("Issue titel must not be blank");
+      throw new IllegalArgumentException("Issue title must not be blank");
     }
-    this.titel = stripped;
+    this.title = stripped;
   }
 
-  /** Optionale externe Kennung (Import); {@code null} bei manueller Anlage. */
-  public String herkunft() {
-    return herkunft;
+  /** Optional external id (import); {@code null} for a manually created issue. */
+  public String origin() {
+    return origin;
   }
 
-  public void setHerkunft(String herkunft) {
-    this.herkunft = herkunft;
+  public void setOrigin(String origin) {
+    this.origin = origin;
   }
 
-  // ── Tags ───────────────────────────────────────────────────────────────
+  // ── tags ─────────────────────────────────────────────────────────────────
 
   public Set<Tag> tags() {
     return Set.copyOf(tags);
@@ -88,49 +88,49 @@ public final class Issue {
     tags.remove(tag);
   }
 
-  // ── Teile ──────────────────────────────────────────────────────────────
+  // ── parts ────────────────────────────────────────────────────────────────
 
-  /** Legt einen neuen Teil an, der die nächste Position und {@code BACKLOG} erhält. */
-  public Teil addTeil() {
-    Teil teil = new Teil(teile.size() + 1);
-    teil.setIssue(this);
-    teile.add(teil);
-    return teil;
+  /** Creates a new part that gets the next position and {@code BACKLOG}. */
+  public Part addPart() {
+    Part part = new Part(parts.size() + 1);
+    part.setIssue(this);
+    parts.add(part);
+    return part;
   }
 
-  /** Hängt einen bereits konstruierten Teil an (Import/Rekonstruktion). */
-  public Teil uebernimm(Teil teil) {
-    Objects.requireNonNull(teil, "teil");
-    teil.setIssue(this);
-    teile.add(teil);
-    return teil;
+  /** Appends an already-constructed part (import/reconstruction). */
+  public Part adopt(Part part) {
+    Objects.requireNonNull(part, "part");
+    part.setIssue(this);
+    parts.add(part);
+    return part;
   }
 
-  public List<Teil> teile() {
-    return List.copyOf(teile);
+  public List<Part> parts() {
+    return List.copyOf(parts);
   }
 
-  /** Teile geordnet nach ihrer Reihenfolge. */
-  public List<Teil> teileInReihenfolge() {
-    List<Teil> sorted = new ArrayList<>(teile);
-    sorted.sort(Comparator.comparingInt(Teil::reihenfolge));
+  /** Parts ordered by their position. */
+  public List<Part> partsInOrder() {
+    List<Part> sorted = new ArrayList<>(parts);
+    sorted.sort(Comparator.comparingInt(Part::position));
     return List.copyOf(sorted);
   }
 
   /**
-   * Ordnet die Teile neu. {@code neueOrdnung} muss genau dieselben Teile
-   * enthalten; die Reihenfolge-Nummern werden auf 1..n neu vergeben. Betrifft
-   * ausschließlich die inhaltliche Ordnung, niemals die Statushistorie.
+   * Reorders the parts. {@code newOrder} must contain exactly the same parts; the
+   * positions are reassigned 1..n. Affects only the content order, never the
+   * status history.
    */
-  public void ordneTeileNeu(List<Teil> neueOrdnung) {
-    Objects.requireNonNull(neueOrdnung, "neueOrdnung");
-    if (neueOrdnung.size() != teile.size() || !teile.containsAll(neueOrdnung)) {
-      throw new IllegalArgumentException("neueOrdnung must contain exactly the existing Teile");
+  public void reorderParts(List<Part> newOrder) {
+    Objects.requireNonNull(newOrder, "newOrder");
+    if (newOrder.size() != parts.size() || !parts.containsAll(newOrder)) {
+      throw new IllegalArgumentException("newOrder must contain exactly the existing parts");
     }
-    teile.clear();
-    teile.addAll(neueOrdnung);
-    for (int i = 0; i < teile.size(); i++) {
-      teile.get(i).setReihenfolge(i + 1);
+    parts.clear();
+    parts.addAll(newOrder);
+    for (int i = 0; i < parts.size(); i++) {
+      parts.get(i).setPosition(i + 1);
     }
   }
 }

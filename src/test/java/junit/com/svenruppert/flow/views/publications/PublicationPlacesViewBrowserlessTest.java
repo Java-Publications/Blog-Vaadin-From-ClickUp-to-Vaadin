@@ -18,19 +18,17 @@ package junit.com.svenruppert.flow.views.publications;
 
 import com.svenruppert.flow.security.model.AppUser;
 import com.svenruppert.flow.security.roles.AuthorizationRole;
-import com.svenruppert.flow.views.publications.VerlaufView;
+import com.svenruppert.flow.views.publications.PublicationPlacesView;
 import com.svenruppert.jsentinel.authorization.api.SubjectStores;
-import com.svenruppert.publications.model.Arbeitszustand;
-import com.svenruppert.publications.model.Issue;
-import com.svenruppert.publications.model.Teil;
+import com.svenruppert.publications.model.Language;
 import com.svenruppert.publications.persistence.InMemoryPublicationsPersistence;
 import com.svenruppert.publications.persistence.PublicationsProvider;
 import com.svenruppert.publications.persistence.PublicationsRepository;
 import com.vaadin.browserless.BrowserlessTest;
 import com.vaadin.flow.component.UI;
+import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H1;
-import com.vaadin.flow.component.html.H3;
 import junit.com.svenruppert.flow.TestSupport;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -39,15 +37,14 @@ import org.junit.jupiter.api.Test;
 
 import java.util.EnumSet;
 import java.util.Locale;
-import java.util.UUID;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@DisplayName("VerlaufView (V5) — append-only history, ordered by sequence")
-class VerlaufViewBrowserlessTest extends BrowserlessTest {
-
-  private UUID teilId;
+@DisplayName("PublicationPlacesView (V6) — master-data grid")
+class PublicationPlacesViewBrowserlessTest extends BrowserlessTest {
 
   @BeforeEach
   void setUp() {
@@ -58,12 +55,8 @@ class VerlaufViewBrowserlessTest extends BrowserlessTest {
     }
     PublicationsRepository repo =
         new PublicationsRepository(new InMemoryPublicationsPersistence());
-    Issue issue = repo.neuesIssue("Blog – Navigation – Koppelnavigation");
-    Teil teil = issue.addTeil();
-    teil.wechsleZustand(Arbeitszustand.IN_PLANUNG, "Sven");
-    teil.wechsleZustand(Arbeitszustand.IN_PROGRESS, "Redaktion");
-    repo.persist();
-    teilId = teil.id();
+    repo.createPublicationPlace("svenruppert.com", Set.of(Language.GERMAN, Language.ENGLISH));
+    repo.createPublicationPlace("DZone", Set.of(Language.ENGLISH));
     PublicationsProvider.setRepository(repo);
 
     SubjectStores.subjectStore().setCurrentSubject(
@@ -78,19 +71,14 @@ class VerlaufViewBrowserlessTest extends BrowserlessTest {
   }
 
   @Test
-  @DisplayName("teil history lists every status change")
-  void listsTeilHistory() {
-    UI.getCurrent().navigate(VerlaufView.class, "teil/" + teilId);
-    assertTrue($view(H1.class).first().getText().startsWith("History"));
+  @DisplayName("NAV is 'orte'; grid lists the places with a '+ Place' action")
+  void listsPlaces() {
+    assertEquals("orte", PublicationPlacesView.NAV);
+    UI.getCurrent().navigate(PublicationPlacesView.class);
+    assertEquals("Publication places", $view(H1.class).first().getText());
     Grid<?> grid = $view(Grid.class).first();
-    assertEquals(5, grid.getColumns().size(), "Seq, From, To, Actor, Timestamp");
     assertEquals(2, grid.getListDataView().getItemCount());
-  }
-
-  @Test
-  @DisplayName("no path → empty state")
-  void emptyWithoutPath() {
-    UI.getCurrent().navigate(VerlaufView.class);
-    assertEquals("No history selected", $view(H3.class).first().getText());
+    assertTrue($view(Button.class).all().stream()
+        .map(Button::getText).collect(Collectors.toList()).contains("+ Place"));
   }
 }

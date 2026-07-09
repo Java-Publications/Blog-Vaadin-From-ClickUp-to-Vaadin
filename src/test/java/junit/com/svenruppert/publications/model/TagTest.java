@@ -25,23 +25,23 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class TagTest {
 
   @Test
-  void nameWirdGetrimmt() {
+  void nameIsStripped() {
     assertEquals("Vaadin", new Tag("  Vaadin  ").name());
   }
 
   @Test
-  void gleicherNameGleicherTag() {
+  void equalNameEqualTag() {
     assertEquals(new Tag("Java"), new Tag("Java"));
   }
 
   @Test
-  void leererNameWirdAbgelehnt() {
+  void blankNameIsRejected() {
     assertThrows(IllegalArgumentException.class, () -> new Tag("   "));
     assertThrows(IllegalArgumentException.class, () -> new Tag(""));
   }
 
   @Test
-  void nullNameWirdAbgelehnt() {
+  void nullNameIsRejected() {
     assertThrows(NullPointerException.class, () -> new Tag(null));
   }
 }

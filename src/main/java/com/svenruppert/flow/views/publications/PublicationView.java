@@ -25,11 +25,11 @@ import com.svenruppert.flow.views.ui.EmptyState;
 import com.svenruppert.flow.views.ui.PageHeader;
 import com.svenruppert.flow.views.ui.TemplateBrand;
 import com.svenruppert.jsentinel.authorization.api.SubjectStores;
-import com.svenruppert.publications.model.Publikationsort;
-import com.svenruppert.publications.model.Statuswechsel;
-import com.svenruppert.publications.model.Veroeffentlichung;
-import com.svenruppert.publications.model.Veroeffentlichungsstatus;
-import com.svenruppert.publications.model.Vertriebsstatus;
+import com.svenruppert.publications.model.AcquisitionStatus;
+import com.svenruppert.publications.model.ProductionStatus;
+import com.svenruppert.publications.model.Publication;
+import com.svenruppert.publications.model.PublicationPlace;
+import com.svenruppert.publications.model.StatusChange;
 import com.svenruppert.publications.persistence.PublicationsProvider;
 import com.svenruppert.publications.persistence.PublicationsRepository;
 import com.vaadin.flow.component.Composite;
@@ -41,6 +41,7 @@ import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.FlexLayout;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -55,26 +56,25 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * V4 — Veröffentlichungssicht, der dramaturgische Kern. Stellt die beiden
- * orthogonalen Lebenszyklen einer {@link Veroeffentlichung} in zwei
- * gleichwertigen Spalten nebeneinander: links die Akquise
- * ({@link Vertriebsstatus}), rechts die Herstellung
- * ({@link Veroeffentlichungsstatus}). Diese visuelle Zweiteilung ist selbst die
- * Botschaft der Entflechtung. Ortswahl der Zweitverwertung ist Sprachregel-
- * gefiltert. Bediente Prozesse: P0008–P0013.
+ * V4 — Publication view, the dramaturgical core. Places the two orthogonal
+ * lifecycles of a {@link Publication} side by side in two equal columns: on the
+ * left the acquisition ({@link AcquisitionStatus}), on the right the production
+ * ({@link ProductionStatus}). This visual split is itself the message of the
+ * disentanglement. The place choice for the second use is language-rule filtered.
+ * Served processes: P0008–P0013.
  */
-@Route(value = VeroeffentlichungView.NAV, layout = MainLayout.class)
+@Route(value = PublicationView.NAV, layout = MainLayout.class)
 @VisibleFor(AuthorizationRole.USER)
-public class VeroeffentlichungView extends Composite<VerticalLayout>
+public class PublicationView extends Composite<VerticalLayout>
     implements HasUrlParameter<String>, I18nSupport {
 
   public static final String NAV = "veroeffentlichung";
 
   private final transient PublicationsRepository repo = PublicationsProvider.repository();
   private final Div body = new Div();
-  private transient Veroeffentlichung v;
+  private transient Publication publication;
 
-  public VeroeffentlichungView() {
+  public PublicationView() {
     VerticalLayout root = getContent();
     root.setSizeFull();
     root.getStyle().set("gap", "var(--lumo-space-m)");
@@ -84,7 +84,7 @@ public class VeroeffentlichungView extends Composite<VerticalLayout>
 
   @Override
   public void setParameter(BeforeEvent event, String id) {
-    this.v = parse(id).flatMap(repo::findVeroeffentlichung).orElse(null);
+    this.publication = parse(id).flatMap(repo::findPublication).orElse(null);
     render();
   }
 
@@ -98,7 +98,7 @@ public class VeroeffentlichungView extends Composite<VerticalLayout>
 
   private void render() {
     body.removeAll();
-    if (v == null) {
+    if (publication == null) {
       body.add(new EmptyState(VaadinIcon.NEWSPAPER,
           tr("pub.notfound.title", "Publication not found"),
           tr("pub.notfound.body", "Open a publication from a language version.")));
@@ -115,10 +115,10 @@ public class VeroeffentlichungView extends Composite<VerticalLayout>
     columns.setWidthFull();
     columns.getStyle().set("gap", "var(--lumo-space-l)");
     columns.setFlexWrap(FlexLayout.FlexWrap.WRAP);
-    columns.add(akquiseColumn(), herstellungColumn());
+    columns.add(acquisitionColumn(), productionColumn());
     body.add(columns);
 
-    body.add(zweitverwertung());
+    body.add(secondUse());
   }
 
   private Div header() {
@@ -126,83 +126,83 @@ public class VeroeffentlichungView extends Composite<VerticalLayout>
     card.addClassName(TemplateBrand.CSS_CARD);
     card.getStyle().set("padding", "var(--lumo-space-m)");
 
-    Span fassung = new Span(tr("pub.version", "Version") + ": "
-        + v.fassung().sprache().name() + " · " + v.fassung().geplanteZeichen() + " "
-        + tr("pub.chars", "chars"));
-    Span ort = new Span(tr("pub.place", "Place") + ": " + v.ort().name());
-    ort.getStyle().set("margin-left", "var(--lumo-space-l)");
+    Span version = new Span(tr("pub.version", "Version") + ": "
+        + publication.version().language().name() + " · "
+        + publication.version().plannedCharacters() + " " + tr("pub.chars", "chars"));
+    Span place = new Span(tr("pub.place", "Place") + ": " + publication.place().name());
+    place.getStyle().set("margin-left", "var(--lumo-space-l)");
 
-    DatePicker datum = new DatePicker(tr("pub.date", "Date"));
-    datum.setValue(v.datum());
-    datum.addValueChangeListener(e -> {
-      v.setDatum(e.getValue());
+    DatePicker date = new DatePicker(tr("pub.date", "Date"));
+    date.setValue(publication.date());
+    date.addValueChangeListener(e -> {
+      publication.setDate(e.getValue());
       repo.persist();
     });
 
-    TextField verweis = new TextField(tr("pub.link", "Link"));
-    verweis.setValue(v.verweis() == null ? "" : v.verweis());
-    verweis.addValueChangeListener(e -> {
-      v.setVerweis(e.getValue());
+    TextField link = new TextField(tr("pub.link", "Link"));
+    link.setValue(publication.link() == null ? "" : publication.link());
+    link.addValueChangeListener(e -> {
+      publication.setLink(e.getValue());
       repo.persist();
     });
 
-    TextField auftraggeber = new TextField(tr("pub.client", "Client"));
-    auftraggeber.setValue(v.auftraggeber() == null ? "" : v.auftraggeber());
-    auftraggeber.addValueChangeListener(e -> {
-      v.setAuftraggeber(e.getValue() == null || e.getValue().isBlank() ? null : e.getValue());
+    TextField client = new TextField(tr("pub.client", "Client"));
+    client.setValue(publication.client() == null ? "" : publication.client());
+    client.addValueChangeListener(e -> {
+      publication.setClient(e.getValue() == null || e.getValue().isBlank() ? null : e.getValue());
       repo.persist();
     });
 
-    HorizontalLayout meta = new HorizontalLayout(fassung, ort);
-    HorizontalLayout fields = new HorizontalLayout(datum, verweis, auftraggeber);
+    HorizontalLayout meta = new HorizontalLayout(version, place);
+    HorizontalLayout fields = new HorizontalLayout(date, link, client);
     fields.setWidthFull();
-    fields.setFlexGrow(1, verweis);
+    fields.setFlexGrow(1, link);
     card.add(meta, fields);
     return card;
   }
 
-  private Div akquiseColumn() {
-    Select<Vertriebsstatus> select = new Select<>();
-    select.setItems(Vertriebsstatus.values());
-    select.setValue(v.akquisestatus());
+  private Div acquisitionColumn() {
+    Select<AcquisitionStatus> select = new Select<>();
+    select.setItems(AcquisitionStatus.values());
+    select.setValue(publication.acquisitionStatus());
     select.addValueChangeListener(e -> {
-      if (e.getValue() != null && e.getValue() != v.akquisestatus()) {
-        v.wechsleVertrieb(e.getValue(), akteur());
+      if (e.getValue() != null && e.getValue() != publication.acquisitionStatus()) {
+        publication.changeAcquisitionStatus(e.getValue(), actor());
         repo.persist();
         render();
       }
     });
-    String last = v.akquise().ereignisse().isEmpty()
+    String last = publication.acquisition().events().isEmpty()
         ? tr("pub.nohistory", "no change yet")
-        : format(v.akquise().ereignisse().get(v.akquise().ereignisse().size() - 1));
+        : format(publication.acquisition().events().get(publication.acquisition().events().size() - 1));
     return column(tr("pub.acquisition", "ACQUISITION"),
         tr("pub.acquisition.sub", "Sales — reduced, no billing"),
-        PublicationUi.vertrieb(v.akquisestatus()), last, select,
-        "verlauf/akquise/" + v.id());
+        PublicationUi.acquisition(publication.acquisitionStatus()), last, select,
+        "verlauf/akquise/" + publication.id());
   }
 
-  private Div herstellungColumn() {
-    Select<Veroeffentlichungsstatus> select = new Select<>();
-    select.setItems(Veroeffentlichungsstatus.values());
-    select.setValue(v.herstellungsstatus());
+  private Div productionColumn() {
+    Select<ProductionStatus> select = new Select<>();
+    select.setItems(ProductionStatus.values());
+    select.setValue(publication.productionStatus());
     select.addValueChangeListener(e -> {
-      if (e.getValue() != null && e.getValue() != v.herstellungsstatus()) {
-        v.wechsleStatus(e.getValue(), akteur());
+      if (e.getValue() != null && e.getValue() != publication.productionStatus()) {
+        publication.changeProductionStatus(e.getValue(), actor());
         repo.persist();
         render();
       }
     });
-    String last = v.herstellung().ereignisse().isEmpty()
+    String last = publication.production().events().isEmpty()
         ? tr("pub.nohistory", "no change yet")
-        : format(v.herstellung().ereignisse().get(v.herstellung().ereignisse().size() - 1));
+        : format(publication.production().events().get(publication.production().events().size() - 1));
     return column(tr("pub.production", "PRODUCTION"),
         tr("pub.production.sub", "From planning to release"),
-        PublicationUi.herstellung(v.herstellungsstatus()), last, select,
-        "verlauf/herstellung/" + v.id());
+        PublicationUi.production(publication.productionStatus()), last, select,
+        "verlauf/herstellung/" + publication.id());
   }
 
   private Div column(String title, String subtitle, Span bigBadge, String lastLine,
-                     Select<?> select, String verlaufPath) {
+                     Select<?> select, String historyPath) {
     Div card = new Div();
     card.addClassName(TemplateBrand.CSS_CARD);
     card.getStyle().set("padding", "var(--lumo-space-m)");
@@ -222,54 +222,54 @@ public class VeroeffentlichungView extends Composite<VerticalLayout>
     last.getStyle().set("font-size", "var(--lumo-font-size-s)");
     last.getStyle().set("display", "block");
 
-    Button verlauf = new Button(tr("pub.history", "History ›"),
-        e -> UI.getCurrent().navigate(verlaufPath));
-    verlauf.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
+    Button history = new Button(tr("pub.history", "History ›"),
+        e -> UI.getCurrent().navigate(historyPath));
+    history.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
 
     select.setLabel(tr("pub.advance", "Advance"));
 
-    card.add(head, sub, new Div(bigBadge), last, select, verlauf);
+    card.add(head, sub, new Div(bigBadge), last, select, history);
     return card;
   }
 
-  private Div zweitverwertung() {
+  private Div secondUse() {
     Div card = new Div();
     card.getStyle().set("margin-top", "var(--lumo-space-m)");
 
-    List<Publikationsort> weitere = repo.orteFuer(v.sprache()).stream()
-        .filter(o -> !o.id().equals(v.ort().id()))
+    List<PublicationPlace> others = repo.placesFor(publication.language()).stream()
+        .filter(o -> !o.id().equals(publication.place().id()))
         .toList();
 
-    ComboBox<Publikationsort> ortWahl = new ComboBox<>(tr("pub.reuse", "Second use"));
-    ortWahl.setItems(weitere);
-    ortWahl.setItemLabelGenerator(Publikationsort::name);
-    ortWahl.setPlaceholder(tr("pub.reuse.hint", "Another place supporting {0}", v.sprache().name()));
-    ortWahl.setWidth("320px");
+    ComboBox<PublicationPlace> placeChoice = new ComboBox<>(tr("pub.reuse", "Second use"));
+    placeChoice.setItems(others);
+    placeChoice.setItemLabelGenerator(PublicationPlace::name);
+    placeChoice.setPlaceholder(tr("pub.reuse.hint", "Another place supporting {0}", publication.language().name()));
+    placeChoice.setWidth("320px");
 
-    Button anlegen = new Button(tr("pub.reuse.action", "Create second use"), e -> {
-      Publikationsort ort = ortWahl.getValue();
-      if (ort == null) {
-        ortWahl.setInvalid(true);
+    Button create = new Button(tr("pub.reuse.action", "Create second use"), e -> {
+      PublicationPlace place = placeChoice.getValue();
+      if (place == null) {
+        placeChoice.setInvalid(true);
         return;
       }
-      v.fassung().planeVeroeffentlichung(ort);
+      publication.version().planPublication(place);
       repo.persist();
-      UI.getCurrent().navigate(NAV + "/" + v.id());
+      UI.getCurrent().navigate(NAV + "/" + publication.id());
     });
-    anlegen.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+    create.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
-    HorizontalLayout bar = new HorizontalLayout(ortWahl, anlegen);
-    bar.setDefaultVerticalComponentAlignment(
-        com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.END);
+    HorizontalLayout bar = new HorizontalLayout(placeChoice, create);
+    bar.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.END);
     card.add(bar);
     return card;
   }
 
-  private static String format(Statuswechsel<?> w) {
-    return w.von() + " → " + w.nach() + " · " + (w.akteur() == null ? "—" : w.akteur());
+  private static String format(StatusChange<?> change) {
+    return change.from() + " → " + change.to() + " · "
+        + (change.actor() == null ? "—" : change.actor());
   }
 
-  private static String akteur() {
+  private static String actor() {
     return SubjectStores.subjectStore().currentSubject(AppUser.class)
         .map(AppUser::name).orElse("system");
   }

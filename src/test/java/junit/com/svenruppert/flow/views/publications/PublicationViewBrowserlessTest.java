@@ -18,14 +18,14 @@ package junit.com.svenruppert.flow.views.publications;
 
 import com.svenruppert.flow.security.model.AppUser;
 import com.svenruppert.flow.security.roles.AuthorizationRole;
-import com.svenruppert.flow.views.publications.VeroeffentlichungView;
+import com.svenruppert.flow.views.publications.PublicationView;
 import com.svenruppert.jsentinel.authorization.api.SubjectStores;
 import com.svenruppert.publications.model.Issue;
-import com.svenruppert.publications.model.Publikationsort;
-import com.svenruppert.publications.model.Sprache;
-import com.svenruppert.publications.model.Sprachfassung;
-import com.svenruppert.publications.model.Teil;
-import com.svenruppert.publications.model.Veroeffentlichung;
+import com.svenruppert.publications.model.Language;
+import com.svenruppert.publications.model.LanguageVersion;
+import com.svenruppert.publications.model.Part;
+import com.svenruppert.publications.model.Publication;
+import com.svenruppert.publications.model.PublicationPlace;
 import com.svenruppert.publications.persistence.InMemoryPublicationsPersistence;
 import com.svenruppert.publications.persistence.PublicationsProvider;
 import com.svenruppert.publications.persistence.PublicationsRepository;
@@ -51,8 +51,8 @@ import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@DisplayName("VeroeffentlichungView (V4) — two orthogonal columns")
-class VeroeffentlichungViewBrowserlessTest extends BrowserlessTest {
+@DisplayName("PublicationView (V4) — two orthogonal columns")
+class PublicationViewBrowserlessTest extends BrowserlessTest {
 
   private UUID vId;
 
@@ -65,12 +65,12 @@ class VeroeffentlichungViewBrowserlessTest extends BrowserlessTest {
     }
     PublicationsRepository repo =
         new PublicationsRepository(new InMemoryPublicationsPersistence());
-    Publikationsort ort =
-        repo.neuerPublikationsort("svenruppert.com", Set.of(Sprache.DEUTSCH));
-    Issue issue = repo.neuesIssue("Blog – Navigation – Koppelnavigation");
-    Teil teil = issue.addTeil();
-    Sprachfassung de = teil.addSprachfassung(Sprache.DEUTSCH);
-    Veroeffentlichung v = de.planeVeroeffentlichung(ort);
+    PublicationPlace place =
+        repo.createPublicationPlace("svenruppert.com", Set.of(Language.GERMAN));
+    Issue issue = repo.createIssue("Blog – Navigation – Coupled navigation");
+    Part part = issue.addPart();
+    LanguageVersion de = part.addLanguageVersion(Language.GERMAN);
+    Publication v = de.planPublication(place);
     repo.persist();
     vId = v.id();
     PublicationsProvider.setRepository(repo);
@@ -89,13 +89,13 @@ class VeroeffentlichungViewBrowserlessTest extends BrowserlessTest {
   @Test
   @DisplayName("NAV constant is 'veroeffentlichung'")
   void navConstant() {
-    assertEquals("veroeffentlichung", VeroeffentlichungView.NAV);
+    assertEquals("veroeffentlichung", PublicationView.NAV);
   }
 
   @Test
   @DisplayName("renders both lifecycle columns with their initial states")
   void rendersTwoColumns() {
-    UI.getCurrent().navigate(VeroeffentlichungView.class, vId.toString());
+    UI.getCurrent().navigate(PublicationView.class, vId.toString());
 
     assertEquals("Publication", $view(H1.class).first().getText());
 
@@ -113,7 +113,7 @@ class VeroeffentlichungViewBrowserlessTest extends BrowserlessTest {
   @Test
   @DisplayName("unknown id → empty state")
   void notFound() {
-    UI.getCurrent().navigate(VeroeffentlichungView.class, UUID.randomUUID().toString());
+    UI.getCurrent().navigate(PublicationView.class, UUID.randomUUID().toString());
     assertEquals("Publication not found", $view(H3.class).first().getText());
   }
 }

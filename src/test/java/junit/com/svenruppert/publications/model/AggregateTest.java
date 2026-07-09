@@ -16,12 +16,12 @@
 
 package junit.com.svenruppert.publications.model;
 
-import com.svenruppert.publications.model.Arbeitszustand;
+import com.svenruppert.publications.model.EditorialState;
 import com.svenruppert.publications.model.Issue;
-import com.svenruppert.publications.model.Sprache;
-import com.svenruppert.publications.model.Sprachfassung;
+import com.svenruppert.publications.model.Language;
+import com.svenruppert.publications.model.LanguageVersion;
+import com.svenruppert.publications.model.Part;
 import com.svenruppert.publications.model.Tag;
-import com.svenruppert.publications.model.Teil;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -34,26 +34,26 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class AggregateTest {
 
   @Test
-  void issueTitelDarfNichtLeerSein() {
+  void issueTitleMustNotBeBlank() {
     assertThrows(IllegalArgumentException.class, () -> new Issue("   "));
     assertThrows(NullPointerException.class, () -> new Issue(null));
-    assertEquals("Blog – Navigation", new Issue("  Blog – Navigation  ").titel());
+    assertEquals("Blog – Navigation", new Issue("  Blog – Navigation  ").title());
   }
 
   @Test
-  void addTeilVergibtAufsteigendeReihenfolgeUndSetztRueckreferenz() {
-    Issue issue = new Issue("Blog – Navigation – Koppelnavigation");
-    Teil t1 = issue.addTeil();
-    Teil t2 = issue.addTeil();
-    assertEquals(1, t1.reihenfolge());
-    assertEquals(2, t2.reihenfolge());
-    assertSame(issue, t1.issue());
-    assertEquals(Arbeitszustand.BACKLOG, t1.arbeitszustand());
+  void addPartAssignsAscendingPositionAndSetsBackReference() {
+    Issue issue = new Issue("Blog – Navigation – Coupled navigation");
+    Part p1 = issue.addPart();
+    Part p2 = issue.addPart();
+    assertEquals(1, p1.position());
+    assertEquals(2, p2.position());
+    assertSame(issue, p1.issue());
+    assertEquals(EditorialState.BACKLOG, p1.editorialState());
   }
 
   @Test
-  void tagsWerdenVergebenUndEntfernt() {
-    Issue issue = new Issue("Thema");
+  void tagsAreAddedAndRemoved() {
+    Issue issue = new Issue("Topic");
     issue.addTag(new Tag("Vaadin"));
     issue.addTag(new Tag("UX"));
     assertEquals(2, issue.tags().size());
@@ -63,53 +63,53 @@ class AggregateTest {
   }
 
   @Test
-  void ordneTeileNeuVergibtReihenfolgeNeu() {
-    Issue issue = new Issue("Thema");
-    Teil t1 = issue.addTeil();
-    Teil t2 = issue.addTeil();
-    Teil t3 = issue.addTeil();
+  void reorderPartsReassignsPositions() {
+    Issue issue = new Issue("Topic");
+    Part p1 = issue.addPart();
+    Part p2 = issue.addPart();
+    Part p3 = issue.addPart();
 
-    issue.ordneTeileNeu(List.of(t3, t1, t2));
+    issue.reorderParts(List.of(p3, p1, p2));
 
-    assertEquals(1, t3.reihenfolge());
-    assertEquals(2, t1.reihenfolge());
-    assertEquals(3, t2.reihenfolge());
-    assertEquals(List.of(t3, t1, t2), issue.teileInReihenfolge());
+    assertEquals(1, p3.position());
+    assertEquals(2, p1.position());
+    assertEquals(3, p2.position());
+    assertEquals(List.of(p3, p1, p2), issue.partsInOrder());
   }
 
   @Test
-  void ordneTeileNeuLehntFremdeMengeAb() {
-    Issue issue = new Issue("Thema");
-    Teil t1 = issue.addTeil();
-    issue.addTeil();
-    assertThrows(IllegalArgumentException.class, () -> issue.ordneTeileNeu(List.of(t1)));
+  void reorderPartsRejectsForeignSet() {
+    Issue issue = new Issue("Topic");
+    Part p1 = issue.addPart();
+    issue.addPart();
+    assertThrows(IllegalArgumentException.class, () -> issue.reorderParts(List.of(p1)));
   }
 
   @Test
-  void hoechstensEineSprachfassungJeSprache() {
-    Teil teil = new Issue("Thema").addTeil();
-    Sprachfassung de = teil.addSprachfassung(Sprache.DEUTSCH);
-    assertEquals(Sprache.DEUTSCH, de.sprache());
-    assertThrows(IllegalArgumentException.class, () -> teil.addSprachfassung(Sprache.DEUTSCH));
-    teil.addSprachfassung(Sprache.ENGLISCH);
-    assertEquals(2, teil.sprachfassungen().size());
-    assertTrue(teil.fassung(Sprache.ENGLISCH).isPresent());
+  void atMostOneLanguageVersionPerLanguage() {
+    Part part = new Issue("Topic").addPart();
+    LanguageVersion de = part.addLanguageVersion(Language.GERMAN);
+    assertEquals(Language.GERMAN, de.language());
+    assertThrows(IllegalArgumentException.class, () -> part.addLanguageVersion(Language.GERMAN));
+    part.addLanguageVersion(Language.ENGLISH);
+    assertEquals(2, part.languageVersions().size());
+    assertTrue(part.versionFor(Language.ENGLISH).isPresent());
   }
 
   @Test
-  void arbeitszustandWirdUeberVerlaufFortgeschrieben() {
-    Teil teil = new Issue("Thema").addTeil();
-    teil.wechsleZustand(Arbeitszustand.IN_PLANUNG, "Sven");
-    teil.wechsleZustand(Arbeitszustand.IN_PROGRESS, "Sven");
-    assertEquals(Arbeitszustand.IN_PROGRESS, teil.arbeitszustand());
-    assertEquals(2, teil.arbeit().anzahl());
+  void editorialStateIsAdvancedThroughTheHistory() {
+    Part part = new Issue("Topic").addPart();
+    part.changeState(EditorialState.IN_PLANNING, "Sven");
+    part.changeState(EditorialState.IN_PROGRESS, "Sven");
+    assertEquals(EditorialState.IN_PROGRESS, part.editorialState());
+    assertEquals(2, part.editorialWork().count());
   }
 
   @Test
-  void geplanteZeichenLehntNegativAb() {
-    Sprachfassung f = new Issue("T").addTeil().addSprachfassung(Sprache.DEUTSCH);
-    f.setGeplanteZeichen(9000);
-    assertEquals(9000, f.geplanteZeichen());
-    assertThrows(IllegalArgumentException.class, () -> f.setGeplanteZeichen(-1));
+  void plannedCharactersRejectsNegative() {
+    LanguageVersion v = new Issue("T").addPart().addLanguageVersion(Language.GERMAN);
+    v.setPlannedCharacters(9000);
+    assertEquals(9000, v.plannedCharacters());
+    assertThrows(IllegalArgumentException.class, () -> v.setPlannedCharacters(-1));
   }
 }

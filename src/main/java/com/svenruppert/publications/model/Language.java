@@ -17,21 +17,11 @@
 package com.svenruppert.publications.model;
 
 /**
- * Akquise- (reduzierter Vertriebs-) Status einer {@link Veroeffentlichung} —
- * die dritte orthogonale Statusdimension, ohne kaufmännische Abrechnung.
- * Feste Reihenfolge bei freien Übergängen; mehrere Endzustände.
+ * Language of a {@link LanguageVersion} and a capability of a
+ * {@link PublicationPlace}. Deliberately kept lean (only the two languages the
+ * migration article demonstrates).
  */
-public enum Vertriebsstatus {
-  REQUESTED,
-  OFFERED,
-  ACCEPTED,
-  REVIEW,
-  DONE,
-  SKIPPED,
-  CANCELLED;
-
-  /** Die Endzustände dieser Dimension. */
-  public boolean isEndzustand() {
-    return this == DONE || this == SKIPPED || this == CANCELLED;
-  }
+public enum Language {
+  GERMAN,
+  ENGLISH
 }

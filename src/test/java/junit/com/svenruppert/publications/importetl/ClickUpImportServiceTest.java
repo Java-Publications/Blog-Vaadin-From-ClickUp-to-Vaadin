@@ -18,7 +18,7 @@ package junit.com.svenruppert.publications.importetl;
 
 import com.svenruppert.publications.importetl.ClickUpImportService;
 import com.svenruppert.publications.importetl.ImportReport;
-import com.svenruppert.publications.model.Arbeitszustand;
+import com.svenruppert.publications.model.EditorialState;
 import com.svenruppert.publications.model.Issue;
 import com.svenruppert.publications.persistence.InMemoryPublicationsPersistence;
 import com.svenruppert.publications.persistence.PublicationsRepository;
@@ -34,7 +34,7 @@ class ClickUpImportServiceTest {
 
   private static final String FIXTURE = """
       {"tasks":[
-        {"id":"CU-8842","name":"Blog – Navigation – Koppelnavigation",
+        {"id":"CU-8842","name":"Blog – Navigation – Coupled navigation",
          "status":{"status":"in progress"},
          "tags":[{"name":"Vaadin"},{"name":"UX"}],"url":"http://x/1"},
         {"id":"CU-8843","name":"Blog – Testing – JUnit 5 Extensions",
@@ -55,42 +55,42 @@ class ClickUpImportServiceTest {
   void transformAndLoadReconstructs() {
     ImportReport report = service.transformAndLoad(FIXTURE, repo);
 
-    assertEquals(2, report.angelegt());
-    assertEquals(0, report.uebersprungen());
+    assertEquals(2, report.created());
+    assertEquals(0, report.skipped());
     assertEquals(2, repo.issues().size());
 
-    Issue koppel = repo.findIssueByHerkunft("CU-8842").orElseThrow();
-    assertEquals("Blog – Navigation – Koppelnavigation", koppel.titel());
-    assertEquals(2, koppel.tags().size());
-    assertEquals(1, koppel.teile().size());
-    assertEquals(Arbeitszustand.IN_PROGRESS, koppel.teile().get(0).arbeitszustand());
+    Issue coupled = repo.findIssueByOrigin("CU-8842").orElseThrow();
+    assertEquals("Blog – Navigation – Coupled navigation", coupled.title());
+    assertEquals(2, coupled.tags().size());
+    assertEquals(1, coupled.parts().size());
+    assertEquals(EditorialState.IN_PROGRESS, coupled.parts().get(0).editorialState());
 
-    Issue testing = repo.findIssueByHerkunft("CU-8843").orElseThrow();
-    assertEquals(Arbeitszustand.DONE, testing.teile().get(0).arbeitszustand());
+    Issue testing = repo.findIssueByOrigin("CU-8843").orElseThrow();
+    assertEquals(EditorialState.DONE, testing.parts().get(0).editorialState());
 
-    assertTrue(report.statusVerteilung().containsKey("in progress → IN_PROGRESS"));
-    assertTrue(report.statusVerteilung().containsKey("complete → DONE"));
+    assertTrue(report.statusDistribution().containsKey("in progress → IN_PROGRESS"));
+    assertTrue(report.statusDistribution().containsKey("complete → DONE"));
   }
 
   @Test
-  @DisplayName("re-running the same raw data creates no duplicates (idempotent via Herkunft)")
+  @DisplayName("re-running the same raw data creates no duplicates (idempotent via origin)")
   void reimportIsIdempotent() {
     service.transformAndLoad(FIXTURE, repo);
     ImportReport second = service.transformAndLoad(FIXTURE, repo);
 
-    assertEquals(0, second.angelegt());
-    assertEquals(2, second.uebersprungen());
+    assertEquals(0, second.created());
+    assertEquals(2, second.skipped());
     assertEquals(2, repo.issues().size(), "no duplicates on repeat run");
   }
 
   @Test
   @DisplayName("status mapping covers the common ClickUp states")
   void statusMapping() {
-    assertEquals(Arbeitszustand.IN_PROGRESS, ClickUpImportService.mapStatus("in progress"));
-    assertEquals(Arbeitszustand.REVIEW, ClickUpImportService.mapStatus("Review"));
-    assertEquals(Arbeitszustand.DONE, ClickUpImportService.mapStatus("complete"));
-    assertEquals(Arbeitszustand.CANCELLED, ClickUpImportService.mapStatus("cancelled"));
-    assertEquals(Arbeitszustand.BACKLOG, ClickUpImportService.mapStatus("something else"));
-    assertEquals(Arbeitszustand.BACKLOG, ClickUpImportService.mapStatus(null));
+    assertEquals(EditorialState.IN_PROGRESS, ClickUpImportService.mapStatus("in progress"));
+    assertEquals(EditorialState.REVIEW, ClickUpImportService.mapStatus("Review"));
+    assertEquals(EditorialState.DONE, ClickUpImportService.mapStatus("complete"));
+    assertEquals(EditorialState.CANCELLED, ClickUpImportService.mapStatus("cancelled"));
+    assertEquals(EditorialState.BACKLOG, ClickUpImportService.mapStatus("something else"));
+    assertEquals(EditorialState.BACKLOG, ClickUpImportService.mapStatus(null));
   }
 }

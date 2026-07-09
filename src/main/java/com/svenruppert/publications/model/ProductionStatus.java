@@ -17,11 +17,13 @@
 package com.svenruppert.publications.model;
 
 /**
- * Sprache einer {@link Sprachfassung} und Fähigkeit eines
- * {@link Publikationsort}s. Bewusst schlank gehalten (nur die zwei
- * Sprachen, die der Migrationsartikel vorführt).
+ * Production status of a {@link Publication} — the second orthogonal status
+ * dimension. {@code PLANNED -> PREPARED -> PUBLISHED}; {@code UPDATE_NEEDED} is
+ * a return step after release, not a regular forward step.
  */
-public enum Sprache {
-  DEUTSCH,
-  ENGLISCH
+public enum ProductionStatus {
+  PLANNED,
+  PREPARED,
+  PUBLISHED,
+  UPDATE_NEEDED
 }

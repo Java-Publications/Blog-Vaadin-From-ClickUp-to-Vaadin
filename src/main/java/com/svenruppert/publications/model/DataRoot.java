@@ -21,13 +21,13 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Ein einziger Wurzelknoten, der die beiden verbliebenen Aggregatlisten hält.
- * Dient zugleich als Objektwurzel für die Eclipse-Store-Persistenz der Domäne.
+ * A single root node holding the two remaining aggregate lists. Also serves as
+ * the object root for the domain's Eclipse-Store persistence.
  */
-public final class Datenwurzel {
+public final class DataRoot {
 
   private final List<Issue> issues = new ArrayList<>();
-  private final List<Publikationsort> publikationsorte = new ArrayList<>();
+  private final List<PublicationPlace> publicationPlaces = new ArrayList<>();
 
   public List<Issue> issues() {
     return List.copyOf(issues);
@@ -42,16 +42,16 @@ public final class Datenwurzel {
     issues.remove(issue);
   }
 
-  public List<Publikationsort> publikationsorte() {
-    return List.copyOf(publikationsorte);
+  public List<PublicationPlace> publicationPlaces() {
+    return List.copyOf(publicationPlaces);
   }
 
-  public Publikationsort addPublikationsort(Publikationsort ort) {
-    publikationsorte.add(Objects.requireNonNull(ort, "ort"));
-    return ort;
+  public PublicationPlace addPublicationPlace(PublicationPlace place) {
+    publicationPlaces.add(Objects.requireNonNull(place, "place"));
+    return place;
   }
 
-  public void removePublikationsort(Publikationsort ort) {
-    publikationsorte.remove(ort);
+  public void removePublicationPlace(PublicationPlace place) {
+    publicationPlaces.remove(place);
   }
 }

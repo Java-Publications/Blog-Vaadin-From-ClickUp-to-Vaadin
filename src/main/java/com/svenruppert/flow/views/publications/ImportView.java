@@ -24,9 +24,9 @@ import com.svenruppert.publications.importetl.ClickUpImportService;
 import com.svenruppert.publications.importetl.ImportReport;
 import com.svenruppert.publications.persistence.PublicationsProvider;
 import com.svenruppert.publications.persistence.PublicationsRepository;
+import com.vaadin.flow.component.Composite;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.Composite;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
@@ -41,11 +41,11 @@ import com.vaadin.flow.router.Route;
 import java.util.Map;
 
 /**
- * V7 — Import-Konsole (ETL). Steuert den idempotenten Import aus ClickUp in drei
- * Schritten: Extrahieren (echte API), Transformieren &amp; Laden, Wiederholungslauf
- * (erzeugt keine Dubletten). Zeigt das Protokoll des letzten Laufs und die
- * Verteilung des konflierten Ursprungsstatus auf die entflochtene Dimension.
- * Bediente Prozesse: P0016–P0018. Bewusst schmucklos (Wegwerfmodul-Nähe).
+ * V7 — Import console (ETL). Controls the idempotent ClickUp import in three
+ * steps: extract (real API), transform &amp; load, repeat run (creates no
+ * duplicates). Shows the log of the last run and the distribution of the
+ * conflated source status onto the disentangled dimension. Served processes:
+ * P0016–P0018. Deliberately plain (close to a throwaway module).
  */
 @Route(value = ImportView.NAV, layout = MainLayout.class)
 @RequiresPermission("publications:import")
@@ -59,8 +59,8 @@ public class ImportView extends Composite<VerticalLayout> implements I18nSupport
   private final PasswordField token = new PasswordField(tr("import.token", "ClickUp API token"));
   private final TextField listId = new TextField(tr("import.list", "List id"));
   private final ProgressBar progress = new ProgressBar();
-  private final Div protokoll = new Div();
-  private final Grid<Map.Entry<String, Integer>> verteilung = new Grid<>();
+  private final Div log = new Div();
+  private final Grid<Map.Entry<String, Integer>> distribution = new Grid<>();
 
   private transient String lastRaw;
 
@@ -76,8 +76,7 @@ public class ImportView extends Composite<VerticalLayout> implements I18nSupport
     token.setValue(System.getProperty("clickup.token", ""));
     listId.setValue(System.getProperty("clickup.listId", ""));
     token.setWidth("320px");
-    HorizontalLayout config = new HorizontalLayout(token, listId);
-    root.add(config);
+    root.add(new HorizontalLayout(token, listId));
 
     Button extract = new Button(tr("import.extract", "① Extract"), e -> onExtract());
     extract.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
@@ -89,19 +88,19 @@ public class ImportView extends Composite<VerticalLayout> implements I18nSupport
     progress.setVisible(false);
     root.add(progress);
 
-    protokoll.getStyle().set("color", "var(--lumo-secondary-text-color)");
-    protokoll.setText(tr("import.none", "No run yet. Start with ①."));
-    root.add(protokoll);
+    log.getStyle().set("color", "var(--lumo-secondary-text-color)");
+    log.setText(tr("import.none", "No run yet. Start with ①."));
+    root.add(log);
 
-    verteilung.addColumn(Map.Entry::getKey)
+    distribution.addColumn(Map.Entry::getKey)
         .setHeader(tr("import.col.mapping", "ClickUp status → dimension")).setFlexGrow(1);
-    verteilung.addColumn(Map.Entry::getValue)
+    distribution.addColumn(Map.Entry::getValue)
         .setHeader(tr("import.col.count", "Count")).setAutoWidth(true);
-    verteilung.setAllRowsVisible(true);
+    distribution.setAllRowsVisible(true);
     root.add(new Span(tr("import.dist", "Status disentanglement — ClickUp → dimension")));
-    root.add(verteilung);
+    root.add(distribution);
 
-    root.setFlexGrow(1, verteilung);
+    root.setFlexGrow(1, distribution);
   }
 
   private void onExtract() {
@@ -114,7 +113,7 @@ public class ImportView extends Composite<VerticalLayout> implements I18nSupport
     progress.setVisible(true);
     try {
       lastRaw = service.extract(t, l);
-      protokoll.setText(tr("import.extracted", "Extracted {0} bytes. Now run ②.", lastRaw.length()));
+      log.setText(tr("import.extracted", "Extracted {0} bytes. Now run ②.", lastRaw.length()));
     } catch (Exception ex) {
       Notification.show(tr("import.extractfail", "Extract failed: {0}", String.valueOf(ex.getMessage())));
     } finally {
@@ -129,10 +128,10 @@ public class ImportView extends Composite<VerticalLayout> implements I18nSupport
     }
     try {
       ImportReport report = service.transformAndLoad(lastRaw, repo);
-      protokoll.setText(tr("import.report",
+      log.setText(tr("import.report",
           "Created {0} · updated {1} · skipped {2}.",
-          report.angelegt(), report.aktualisiert(), report.uebersprungen()));
-      verteilung.setItems(report.statusVerteilung().entrySet());
+          report.created(), report.updated(), report.skipped()));
+      distribution.setItems(report.statusDistribution().entrySet());
     } catch (RuntimeException ex) {
       Notification.show(tr("import.loadfail", "Transform/load failed: {0}",
           String.valueOf(ex.getMessage())));

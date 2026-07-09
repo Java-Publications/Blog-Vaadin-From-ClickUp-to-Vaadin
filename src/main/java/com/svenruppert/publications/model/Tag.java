@@ -19,8 +19,8 @@ package com.svenruppert.publications.model;
 import java.util.Objects;
 
 /**
- * Technologie- oder Themen-Tag am {@link Issue}. Rein beschreibend,
- * beeinflusst keinen Status; dient als Filter- und Suchkriterium.
+ * A technology or topic tag on an {@link Issue}. Purely descriptive, does not
+ * influence any status; serves as a filter and search criterion.
  */
 public record Tag(String name) {
   public Tag {

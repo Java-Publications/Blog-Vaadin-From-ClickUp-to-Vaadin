@@ -16,34 +16,34 @@
 
 package com.svenruppert.publications.persistence;
 
-import com.svenruppert.publications.model.Datenwurzel;
+import com.svenruppert.publications.model.DataRoot;
 
 import java.util.Objects;
 
 /**
- * Heap-basierte {@link PublicationsPersistence} — der No-Mocks-Test-Seam.
- * Hält die Datenwurzel als lebende Referenz; {@link #save} merkt sich lediglich
- * die (in place mutierte) Wurzel, {@link #load} gibt sie zurück.
+ * Heap-based {@link PublicationsPersistence} — the no-mocks test seam. Holds the
+ * data root as a live reference; {@link #save} merely remembers the (in-place
+ * mutated) root, {@link #load} returns it.
  */
 public final class InMemoryPublicationsPersistence implements PublicationsPersistence {
 
-  private Datenwurzel wurzel;
+  private DataRoot root;
 
   public InMemoryPublicationsPersistence() {
-    this(new Datenwurzel());
+    this(new DataRoot());
   }
 
-  public InMemoryPublicationsPersistence(Datenwurzel initial) {
-    this.wurzel = Objects.requireNonNull(initial, "initial");
-  }
-
-  @Override
-  public synchronized Datenwurzel load() {
-    return wurzel;
+  public InMemoryPublicationsPersistence(DataRoot initial) {
+    this.root = Objects.requireNonNull(initial, "initial");
   }
 
   @Override
-  public synchronized void save(Datenwurzel wurzel) {
-    this.wurzel = Objects.requireNonNull(wurzel, "wurzel");
+  public synchronized DataRoot load() {
+    return root;
+  }
+
+  @Override
+  public synchronized void save(DataRoot root) {
+    this.root = Objects.requireNonNull(root, "root");
   }
 }

@@ -18,7 +18,7 @@ package com.svenruppert.publications.persistence;
 
 import com.svenruppert.dependencies.core.logger.HasLogger;
 import com.svenruppert.flow.security.storage.AppStoragePaths;
-import com.svenruppert.publications.model.Datenwurzel;
+import com.svenruppert.publications.model.DataRoot;
 import org.eclipse.store.storage.embedded.types.EmbeddedStorage;
 import org.eclipse.store.storage.embedded.types.EmbeddedStorageManager;
 
@@ -27,17 +27,17 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Produktions-Default der {@link PublicationsPersistence}. Hält den
- * {@link Datenwurzel}-Graph in einer <strong>eigenen</strong> Eclipse-Store-
- * Instanz — getrennt von der jSentinel-Framework-Storage und der
- * User-Directory-Storage, aus denselben Gründen (single-rooted Framework-Root,
- * unabhängige Migration/Backup/Reset).
+ * Production default of {@link PublicationsPersistence}. Holds the
+ * {@link DataRoot} graph in its <strong>own</strong> Eclipse-Store instance —
+ * separate from the jSentinel framework storage and the user-directory storage,
+ * for the same reasons (single-rooted framework root, independent migration/
+ * backup/reset).
  *
- * <p>Default-Verzeichnis: {@code ./data/app/publications}. Lazy geöffnet beim
- * ersten {@link #load()}, geschlossen über Shutdown-Hook + explizites
- * {@link #close()}. {@link #save} nutzt einen Eager-Storer, der den gesamten
- * erreichbaren Objektgraph tief persistiert — für den MVP-Datenumfang einfach
- * und korrekt, ohne manuelles Dirty-Tracking.
+ * <p>Default directory: {@code ./data/app/publications}. Opened lazily on first
+ * {@link #load()}, closed via a shutdown hook plus an explicit {@link #close()}.
+ * {@link #save} uses an eager storer that deeply persists the whole reachable
+ * object graph — simple and correct for the MVP data volume, without manual
+ * dirty tracking.
  */
 public final class EclipseStorePublicationsPersistence
     implements PublicationsPersistence, HasLogger {
@@ -48,7 +48,7 @@ public final class EclipseStorePublicationsPersistence
   private final Path storageDir;
   private final AtomicBoolean closed = new AtomicBoolean();
   private volatile EmbeddedStorageManager manager;
-  private volatile Datenwurzel root;
+  private volatile DataRoot root;
 
   public EclipseStorePublicationsPersistence() {
     this(DEFAULT_STORAGE_DIR);
@@ -59,25 +59,25 @@ public final class EclipseStorePublicationsPersistence
   }
 
   @Override
-  public synchronized Datenwurzel load() {
+  public synchronized DataRoot load() {
     ensureOpen();
     return root;
   }
 
   @Override
-  public synchronized void save(Datenwurzel wurzel) {
+  public synchronized void save(DataRoot root) {
     ensureOpen();
-    Objects.requireNonNull(wurzel, "wurzel");
-    if (wurzel != root) {
-      root = wurzel;
+    Objects.requireNonNull(root, "root");
+    if (root != this.root) {
+      this.root = root;
       manager.setRoot(root);
       manager.storeRoot();
     }
     var storer = manager.createEagerStorer();
-    storer.store(root);
+    storer.store(this.root);
     storer.commit();
-    logger().debug("EclipseStorePublicationsPersistence: persisted {} issues, {} orte to {}",
-        root.issues().size(), root.publikationsorte().size(), storageDir);
+    logger().debug("EclipseStorePublicationsPersistence: persisted {} issues, {} places to {}",
+        this.root.issues().size(), this.root.publicationPlaces().size(), storageDir);
   }
 
   @Override
@@ -95,10 +95,10 @@ public final class EclipseStorePublicationsPersistence
 
   private void ensureOpen() {
     if (manager != null) return;
-    Datenwurzel initial = new Datenwurzel();
+    DataRoot initial = new DataRoot();
     manager = EmbeddedStorage.start(initial, storageDir);
     Object loaded = manager.root();
-    if (loaded instanceof Datenwurzel existing) {
+    if (loaded instanceof DataRoot existing) {
       root = existing;
       logger().info("EclipseStorePublicationsPersistence: opened {} ({} issues present)",
           storageDir, root.issues().size());
@@ -111,7 +111,7 @@ public final class EclipseStorePublicationsPersistence
       manager.shutdown();
       throw new IllegalStateException(
           "Unexpected root type in " + storageDir + ": " + loaded.getClass().getName()
-              + " — expected " + Datenwurzel.class.getName());
+              + " — expected " + DataRoot.class.getName());
     }
     Runtime.getRuntime().addShutdownHook(new Thread(this::close,
         "app-publications-storage-shutdown"));

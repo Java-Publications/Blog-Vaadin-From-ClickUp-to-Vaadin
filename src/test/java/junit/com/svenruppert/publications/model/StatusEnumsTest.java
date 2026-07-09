@@ -16,10 +16,10 @@
 
 package junit.com.svenruppert.publications.model;
 
-import com.svenruppert.publications.model.Arbeitszustand;
-import com.svenruppert.publications.model.Sprache;
-import com.svenruppert.publications.model.Veroeffentlichungsstatus;
-import com.svenruppert.publications.model.Vertriebsstatus;
+import com.svenruppert.publications.model.AcquisitionStatus;
+import com.svenruppert.publications.model.EditorialState;
+import com.svenruppert.publications.model.Language;
+import com.svenruppert.publications.model.ProductionStatus;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -29,32 +29,32 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class StatusEnumsTest {
 
   @Test
-  void arbeitszustandEndzustaende() {
-    assertTrue(Arbeitszustand.DONE.isEndzustand());
-    assertTrue(Arbeitszustand.SKIPPED.isEndzustand());
-    assertTrue(Arbeitszustand.CANCELLED.isEndzustand());
-    assertFalse(Arbeitszustand.BACKLOG.isEndzustand());
-    assertFalse(Arbeitszustand.IN_PLANUNG.isEndzustand());
-    assertFalse(Arbeitszustand.IN_PROGRESS.isEndzustand());
-    assertFalse(Arbeitszustand.REVIEW.isEndzustand());
+  void editorialTerminalStates() {
+    assertTrue(EditorialState.DONE.isTerminal());
+    assertTrue(EditorialState.SKIPPED.isTerminal());
+    assertTrue(EditorialState.CANCELLED.isTerminal());
+    assertFalse(EditorialState.BACKLOG.isTerminal());
+    assertFalse(EditorialState.IN_PLANNING.isTerminal());
+    assertFalse(EditorialState.IN_PROGRESS.isTerminal());
+    assertFalse(EditorialState.REVIEW.isTerminal());
   }
 
   @Test
-  void vertriebsstatusEndzustaende() {
-    assertTrue(Vertriebsstatus.DONE.isEndzustand());
-    assertTrue(Vertriebsstatus.SKIPPED.isEndzustand());
-    assertTrue(Vertriebsstatus.CANCELLED.isEndzustand());
-    assertFalse(Vertriebsstatus.REQUESTED.isEndzustand());
-    assertFalse(Vertriebsstatus.OFFERED.isEndzustand());
-    assertFalse(Vertriebsstatus.ACCEPTED.isEndzustand());
-    assertFalse(Vertriebsstatus.REVIEW.isEndzustand());
+  void acquisitionTerminalStates() {
+    assertTrue(AcquisitionStatus.DONE.isTerminal());
+    assertTrue(AcquisitionStatus.SKIPPED.isTerminal());
+    assertTrue(AcquisitionStatus.CANCELLED.isTerminal());
+    assertFalse(AcquisitionStatus.REQUESTED.isTerminal());
+    assertFalse(AcquisitionStatus.OFFERED.isTerminal());
+    assertFalse(AcquisitionStatus.ACCEPTED.isTerminal());
+    assertFalse(AcquisitionStatus.REVIEW.isTerminal());
   }
 
   @Test
-  void dimensionenHabenDieErwartetenWerte() {
-    assertEquals(2, Sprache.values().length);
-    assertEquals(4, Veroeffentlichungsstatus.values().length);
-    assertEquals(7, Arbeitszustand.values().length);
-    assertEquals(7, Vertriebsstatus.values().length);
+  void dimensionsHaveTheExpectedValues() {
+    assertEquals(2, Language.values().length);
+    assertEquals(4, ProductionStatus.values().length);
+    assertEquals(7, EditorialState.values().length);
+    assertEquals(7, AcquisitionStatus.values().length);
   }
 }

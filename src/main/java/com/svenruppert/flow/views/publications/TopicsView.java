@@ -24,10 +24,12 @@ import com.svenruppert.flow.views.ui.EmptyState;
 import com.svenruppert.flow.views.ui.FilterBar;
 import com.svenruppert.flow.views.ui.PageHeader;
 import com.svenruppert.publications.model.Issue;
+import com.svenruppert.publications.model.Part;
 import com.svenruppert.publications.model.Tag;
-import com.svenruppert.publications.model.Teil;
 import com.svenruppert.publications.persistence.PublicationsProvider;
 import com.svenruppert.publications.persistence.PublicationsRepository;
+import com.vaadin.flow.component.ClickEvent;
+import com.vaadin.flow.component.ComponentEventListener;
 import com.vaadin.flow.component.Composite;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
@@ -52,18 +54,18 @@ import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 /**
- * V1 — Themen-Arbeitsplatz. Einstieg in den Bestand: ein Master-{@link Grid}
- * der {@link Issue}s links (mit {@link FilterBar} nach Titel und Tags), rechts
- * die Detailsicht des gewählten Themas mit Tags und der geordneten Folge seiner
- * {@link Teil}e. Von hier „Öffnen" in den Sprachfassungs-Editor (V2) und
- * „Verlauf" in die Verlaufsansicht (V5).
+ * V1 — Topics workspace. The entry into the backlog: a master {@link Grid} of the
+ * {@link Issue}s on the left (with a {@link FilterBar} by title and tags), and on
+ * the right the detail view of the selected topic with its tags and the ordered
+ * sequence of its {@link Part}s. From here "Open" leads into the language-version
+ * editor (V2) and "History" into the history view (V5).
  *
- * <p>Bediente Prozesse: P0001 (Thema erfassen), P0002 (Tags), P0003 (Teile
- * gliedern), P0019 (durchsuchen).
+ * <p>Served processes: P0001 (create topic), P0002 (tags), P0003 (split into
+ * parts), P0019 (search).
  */
-@Route(value = ThemenView.NAV, layout = MainLayout.class)
+@Route(value = TopicsView.NAV, layout = MainLayout.class)
 @VisibleFor(AuthorizationRole.USER)
-public class ThemenView extends Composite<VerticalLayout> implements I18nSupport {
+public class TopicsView extends Composite<VerticalLayout> implements I18nSupport {
 
   public static final String NAV = "themen";
 
@@ -71,19 +73,19 @@ public class ThemenView extends Composite<VerticalLayout> implements I18nSupport
 
   private final Grid<Issue> grid = new Grid<>(Issue.class, false);
   private final FilterBar filterBar = new FilterBar();
-  private final TextField suche;
+  private final TextField searchField;
   private final MultiSelectComboBox<Tag> tagFilter;
   private final Div detail = new Div();
 
   {
-    suche = filterBar.addText(tr("themen.filter.search", "Search"),
+    searchField = filterBar.addText(tr("themen.filter.search", "Search"),
         tr("themen.filter.search.ph", "Title contains…"));
     tagFilter = filterBar.addMultiSelect(tr("themen.filter.tags", "Tags"),
         allTags(), tr("themen.filter.tags.ph", "Any tag"));
     tagFilter.setItemLabelGenerator(Tag::name);
   }
 
-  public ThemenView() {
+  public TopicsView() {
     VerticalLayout root = getContent();
     root.setSizeFull();
     root.getStyle().set("gap", "var(--lumo-space-m)");
@@ -93,12 +95,12 @@ public class ThemenView extends Composite<VerticalLayout> implements I18nSupport
         tr("themen.subtitle", "Issues, their parts and tags — the entry into the backlog."))
         .withActions(primary(tr("themen.new", "+ Topic"), e -> openCreateIssueDialog())));
 
-    suche.addValueChangeListener(e -> refreshMaster());
+    searchField.addValueChangeListener(e -> refreshMaster());
     tagFilter.addValueChangeListener(e -> refreshMaster());
     filterBar.onClear(this::refreshMaster);
 
-    grid.addColumn(Issue::titel).setHeader(tr("themen.col.title", "Title")).setFlexGrow(1);
-    grid.addColumn(i -> i.teile().size()).setHeader(tr("themen.col.parts", "Parts")).setAutoWidth(true);
+    grid.addColumn(Issue::title).setHeader(tr("themen.col.title", "Title")).setFlexGrow(1);
+    grid.addColumn(i -> i.parts().size()).setHeader(tr("themen.col.parts", "Parts")).setAutoWidth(true);
     grid.addComponentColumn(this::statusSummary).setHeader(tr("themen.col.status", "Status")).setAutoWidth(true);
     grid.setSizeFull();
     grid.asSingleSelect().addValueChangeListener(e -> showDetail(e.getValue()));
@@ -125,12 +127,12 @@ public class ThemenView extends Composite<VerticalLayout> implements I18nSupport
   // ── master ───────────────────────────────────────────────────────────────
 
   private void refreshMaster() {
-    String needle = suche.getValue() == null ? "" : suche.getValue().strip().toLowerCase();
+    String needle = searchField.getValue() == null ? "" : searchField.getValue().strip().toLowerCase();
     Set<Tag> wanted = tagFilter.getValue();
     List<Issue> issues = repo.issues().stream()
-        .filter(i -> needle.isEmpty() || i.titel().toLowerCase().contains(needle))
+        .filter(i -> needle.isEmpty() || i.title().toLowerCase().contains(needle))
         .filter(i -> wanted.isEmpty() || i.tags().stream().anyMatch(wanted::contains))
-        .sorted((a, b) -> a.titel().compareToIgnoreCase(b.titel()))
+        .sorted((a, b) -> a.title().compareToIgnoreCase(b.title()))
         .toList();
     grid.setItems(issues);
     filterBar.setCount(issues.size(), tr("themen.unit", "topics"));
@@ -140,10 +142,10 @@ public class ThemenView extends Composite<VerticalLayout> implements I18nSupport
     HorizontalLayout row = new HorizontalLayout();
     row.setSpacing(false);
     row.getStyle().set("gap", "var(--lumo-space-xs)");
-    issue.teileInReihenfolge().stream()
-        .map(Teil::arbeitszustand)
+    issue.partsInOrder().stream()
+        .map(Part::editorialState)
         .distinct()
-        .forEach(z -> row.add(PublicationUi.arbeitszustand(z)));
+        .forEach(s -> row.add(PublicationUi.editorialState(s)));
     return row;
   }
 
@@ -158,13 +160,13 @@ public class ThemenView extends Composite<VerticalLayout> implements I18nSupport
       return;
     }
 
-    H3 title = new H3(issue.titel());
+    H3 title = new H3(issue.title());
     detail.add(title);
-    if (issue.herkunft() != null) {
-      Span herkunft = new Span(tr("themen.detail.origin", "Origin: {0}", issue.herkunft()));
-      herkunft.getStyle().set("color", "var(--lumo-secondary-text-color)");
-      herkunft.getStyle().set("font-size", "var(--lumo-font-size-s)");
-      detail.add(herkunft, new Div());
+    if (issue.origin() != null) {
+      Span origin = new Span(tr("themen.detail.origin", "Origin: {0}", issue.origin()));
+      origin.getStyle().set("color", "var(--lumo-secondary-text-color)");
+      origin.getStyle().set("font-size", "var(--lumo-font-size-s)");
+      detail.add(origin, new Div());
     }
 
     FlexLayout tags = new FlexLayout();
@@ -176,35 +178,35 @@ public class ThemenView extends Composite<VerticalLayout> implements I18nSupport
     tags.add(addTag);
     detail.add(tags);
 
-    Grid<Teil> teile = new Grid<>(Teil.class, false);
-    teile.addColumn(t -> "#" + t.reihenfolge()).setHeader("#").setAutoWidth(true);
-    teile.addColumn(t -> tr("themen.part", "Part {0}", t.reihenfolge())).setHeader(tr("themen.col.part", "Part")).setFlexGrow(1);
-    teile.addColumn(t -> t.sprachfassungen().size()).setHeader(tr("themen.col.versions", "Versions")).setAutoWidth(true);
-    teile.addComponentColumn(t -> PublicationUi.arbeitszustand(t.arbeitszustand()))
+    Grid<Part> parts = new Grid<>(Part.class, false);
+    parts.addColumn(p -> "#" + p.position()).setHeader("#").setAutoWidth(true);
+    parts.addColumn(p -> tr("themen.part", "Part {0}", p.position())).setHeader(tr("themen.col.part", "Part")).setFlexGrow(1);
+    parts.addColumn(p -> p.languageVersions().size()).setHeader(tr("themen.col.versions", "Versions")).setAutoWidth(true);
+    parts.addComponentColumn(p -> PublicationUi.editorialState(p.editorialState()))
         .setHeader(tr("themen.col.state", "State")).setAutoWidth(true);
-    teile.addComponentColumn(this::teilActions).setAutoWidth(true);
-    teile.setItems(issue.teileInReihenfolge());
-    teile.setAllRowsVisible(true);
-    detail.add(teile);
+    parts.addComponentColumn(this::partActions).setAutoWidth(true);
+    parts.setItems(issue.partsInOrder());
+    parts.setAllRowsVisible(true);
+    detail.add(parts);
 
-    Button addTeil = new Button(tr("themen.part.add", "+ Add part"), e -> {
-      issue.addTeil();
+    Button addPart = new Button(tr("themen.part.add", "+ Add part"), e -> {
+      issue.addPart();
       repo.persist();
       showDetail(issue);
       refreshMaster();
     });
-    addTeil.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-    detail.add(addTeil);
+    addPart.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+    detail.add(addPart);
   }
 
-  private HorizontalLayout teilActions(Teil teil) {
+  private HorizontalLayout partActions(Part part) {
     Button open = new Button(tr("themen.open", "Open"),
-        e -> navigate("teil/" + teil.id()));
+        e -> navigate("teil/" + part.id()));
     open.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
-    Button verlauf = new Button(tr("themen.history", "History"),
-        e -> navigate("verlauf/teil/" + teil.id()));
-    verlauf.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
-    return new HorizontalLayout(open, verlauf);
+    Button history = new Button(tr("themen.history", "History"),
+        e -> navigate("verlauf/teil/" + part.id()));
+    history.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
+    return new HorizontalLayout(open, history);
   }
 
   // ── dialogs ──────────────────────────────────────────────────────────────
@@ -212,25 +214,25 @@ public class ThemenView extends Composite<VerticalLayout> implements I18nSupport
   private void openCreateIssueDialog() {
     Dialog dialog = new Dialog();
     dialog.setHeaderTitle(tr("themen.new.title", "New topic"));
-    TextField titel = new TextField(tr("themen.new.field", "Title"));
-    titel.setPlaceholder("Blog – Area – Topic");
-    titel.setWidthFull();
+    TextField title = new TextField(tr("themen.new.field", "Title"));
+    title.setPlaceholder("Blog – Area – Topic");
+    title.setWidthFull();
     Button save = primary(tr("common.save", "Save"), e -> {
-      String value = titel.getValue() == null ? "" : titel.getValue().strip();
+      String value = title.getValue() == null ? "" : title.getValue().strip();
       if (value.isEmpty()) {
-        titel.setInvalid(true);
-        titel.setErrorMessage(tr("themen.new.required", "Title required"));
+        title.setInvalid(true);
+        title.setErrorMessage(tr("themen.new.required", "Title required"));
         return;
       }
-      repo.neuesIssue(value);
+      repo.createIssue(value);
       dialog.close();
       refreshMaster();
     });
     Button cancel = new Button(tr("common.cancel", "Cancel"), e -> dialog.close());
-    dialog.add(titel);
+    dialog.add(title);
     dialog.getFooter().add(cancel, save);
     dialog.open();
-    titel.focus();
+    title.focus();
   }
 
   private void openAddTagDialog(Issue issue) {
@@ -266,7 +268,7 @@ public class ThemenView extends Composite<VerticalLayout> implements I18nSupport
         .stream().toList();
   }
 
-  private static Button primary(String label, com.vaadin.flow.component.ComponentEventListener<com.vaadin.flow.component.ClickEvent<Button>> listener) {
+  private static Button primary(String label, ComponentEventListener<ClickEvent<Button>> listener) {
     Button b = new Button(label, listener);
     b.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
     return b;

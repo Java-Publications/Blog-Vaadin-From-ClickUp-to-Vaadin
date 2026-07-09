@@ -18,13 +18,13 @@ package junit.com.svenruppert.flow.views.publications;
 
 import com.svenruppert.flow.security.model.AppUser;
 import com.svenruppert.flow.security.roles.AuthorizationRole;
-import com.svenruppert.flow.views.publications.VeroeffentlichungslisteView;
+import com.svenruppert.flow.views.publications.PublicationListView;
 import com.svenruppert.jsentinel.authorization.api.SubjectStores;
 import com.svenruppert.publications.model.Issue;
-import com.svenruppert.publications.model.Publikationsort;
-import com.svenruppert.publications.model.Sprache;
-import com.svenruppert.publications.model.Sprachfassung;
-import com.svenruppert.publications.model.Teil;
+import com.svenruppert.publications.model.Language;
+import com.svenruppert.publications.model.LanguageVersion;
+import com.svenruppert.publications.model.Part;
+import com.svenruppert.publications.model.PublicationPlace;
 import com.svenruppert.publications.persistence.InMemoryPublicationsPersistence;
 import com.svenruppert.publications.persistence.PublicationsProvider;
 import com.svenruppert.publications.persistence.PublicationsRepository;
@@ -44,8 +44,8 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@DisplayName("VeroeffentlichungslisteView — overview grid")
-class VeroeffentlichungslisteViewBrowserlessTest extends BrowserlessTest {
+@DisplayName("PublicationListView — overview grid")
+class PublicationListViewBrowserlessTest extends BrowserlessTest {
 
   @BeforeEach
   void setUp() {
@@ -56,11 +56,11 @@ class VeroeffentlichungslisteViewBrowserlessTest extends BrowserlessTest {
     }
     PublicationsRepository repo =
         new PublicationsRepository(new InMemoryPublicationsPersistence());
-    Publikationsort ort = repo.neuerPublikationsort("svenruppert.com", Set.of(Sprache.DEUTSCH));
-    Issue issue = repo.neuesIssue("Blog – Navigation – Koppelnavigation");
-    Teil teil = issue.addTeil();
-    Sprachfassung de = teil.addSprachfassung(Sprache.DEUTSCH);
-    de.planeVeroeffentlichung(ort);
+    PublicationPlace place = repo.createPublicationPlace("svenruppert.com", Set.of(Language.GERMAN));
+    Issue issue = repo.createIssue("Blog – Navigation – Coupled navigation");
+    Part part = issue.addPart();
+    LanguageVersion de = part.addLanguageVersion(Language.GERMAN);
+    de.planPublication(place);
     repo.persist();
     PublicationsProvider.setRepository(repo);
 
@@ -78,8 +78,8 @@ class VeroeffentlichungslisteViewBrowserlessTest extends BrowserlessTest {
   @Test
   @DisplayName("NAV is 'veroeffentlichungen' and the grid lists the publication")
   void listsPublications() {
-    assertEquals("veroeffentlichungen", VeroeffentlichungslisteView.NAV);
-    UI.getCurrent().navigate(VeroeffentlichungslisteView.class);
+    assertEquals("veroeffentlichungen", PublicationListView.NAV);
+    UI.getCurrent().navigate(PublicationListView.class);
     assertEquals("Publications", $view(H1.class).first().getText());
     Grid<?> grid = $view(Grid.class).first();
     assertEquals(6, grid.getColumns().size());

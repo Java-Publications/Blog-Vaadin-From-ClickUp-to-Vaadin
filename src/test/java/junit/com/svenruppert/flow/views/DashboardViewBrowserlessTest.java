@@ -22,6 +22,7 @@ import com.svenruppert.flow.views.AppLoginView;
 import com.svenruppert.flow.views.DashboardView;
 import com.svenruppert.jsentinel.authorization.api.SubjectStores;
 import com.vaadin.browserless.BrowserlessTest;
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.html.Span;
@@ -32,6 +33,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -43,6 +45,13 @@ class DashboardViewBrowserlessTest extends BrowserlessTest {
   @BeforeEach
   void seedAdmin() {
     TestSupport.seedAdminAndResetBootstrap();
+    // Deterministic locale: the greeting assertion expects the English string,
+    // but the JVM default locale (de_DE on a dev machine) would otherwise make
+    // the I18n facade resolve German.
+    UI ui = UI.getCurrent();
+    if (ui != null) {
+      ui.setLocale(Locale.ENGLISH);
+    }
   }
 
   @Test

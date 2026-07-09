@@ -18,20 +18,18 @@ package junit.com.svenruppert.flow.views.publications;
 
 import com.svenruppert.flow.security.model.AppUser;
 import com.svenruppert.flow.security.roles.AuthorizationRole;
-import com.svenruppert.flow.views.publications.SprachfassungView;
+import com.svenruppert.flow.views.publications.EditorialBoardView;
 import com.svenruppert.jsentinel.authorization.api.SubjectStores;
+import com.svenruppert.publications.model.EditorialState;
 import com.svenruppert.publications.model.Issue;
-import com.svenruppert.publications.model.Sprache;
-import com.svenruppert.publications.model.Teil;
+import com.svenruppert.publications.model.Part;
 import com.svenruppert.publications.persistence.InMemoryPublicationsPersistence;
 import com.svenruppert.publications.persistence.PublicationsProvider;
 import com.svenruppert.publications.persistence.PublicationsRepository;
 import com.vaadin.browserless.BrowserlessTest;
 import com.vaadin.flow.component.UI;
-import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H1;
-import com.vaadin.flow.component.html.H3;
+import com.vaadin.flow.component.select.Select;
 import junit.com.svenruppert.flow.TestSupport;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,16 +38,11 @@ import org.junit.jupiter.api.Test;
 
 import java.util.EnumSet;
 import java.util.Locale;
-import java.util.UUID;
-import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@DisplayName("SprachfassungView (V2) — parametrised route + editor")
-class SprachfassungViewBrowserlessTest extends BrowserlessTest {
-
-  private UUID teilId;
+@DisplayName("EditorialBoardView (V3) — columns per state")
+class EditorialBoardViewBrowserlessTest extends BrowserlessTest {
 
   @BeforeEach
   void setUp() {
@@ -60,12 +53,11 @@ class SprachfassungViewBrowserlessTest extends BrowserlessTest {
     }
     PublicationsRepository repo =
         new PublicationsRepository(new InMemoryPublicationsPersistence());
-    repo.neuerPublikationsort("svenruppert.com", java.util.Set.of(Sprache.DEUTSCH));
-    Issue issue = repo.neuesIssue("Blog – Navigation – Koppelnavigation");
-    Teil teil = issue.addTeil();
-    teil.addSprachfassung(Sprache.DEUTSCH);
+    Issue issue = repo.createIssue("Blog – Navigation – Coupled navigation");
+    issue.addPart();
+    Part p2 = issue.addPart();
+    p2.changeState(EditorialState.IN_PROGRESS, "Sven");
     repo.persist();
-    teilId = teil.id();
     PublicationsProvider.setRepository(repo);
 
     SubjectStores.subjectStore().setCurrentSubject(
@@ -80,31 +72,12 @@ class SprachfassungViewBrowserlessTest extends BrowserlessTest {
   }
 
   @Test
-  @DisplayName("NAV constant is 'teil'")
-  void navConstant() {
-    assertEquals("teil", SprachfassungView.NAV);
-  }
-
-  @Test
-  @DisplayName("renders the editor for a valid part id — header, publications grid, plan button")
-  void rendersEditorForValidTeil() {
-    UI.getCurrent().navigate(SprachfassungView.class, teilId.toString());
-    H1 heading = $view(H1.class).first();
-    assertEquals("Language versions", heading.getText());
-    // one publications grid for the DE version (empty)
-    Grid<?> grid = $view(Grid.class).first();
-    assertEquals(0, grid.getListDataView().getItemCount());
-    assertTrue($view(Button.class).all().stream()
-            .map(Button::getText).collect(Collectors.toList())
-            .contains("Plan publication"),
-        "editor must offer the Sprachregel-guarded plan action");
-  }
-
-  @Test
-  @DisplayName("unknown part id → empty state")
-  void notFoundForUnknownTeil() {
-    UI.getCurrent().navigate(SprachfassungView.class, UUID.randomUUID().toString());
-    H3 empty = $view(H3.class).first();
-    assertEquals("Part not found", empty.getText());
+  @DisplayName("NAV is 'redaktion' and each part gets a move-select card")
+  void boardRendersCards() {
+    assertEquals("redaktion", EditorialBoardView.NAV);
+    UI.getCurrent().navigate(EditorialBoardView.class);
+    assertEquals("Editorial board", $view(H1.class).first().getText());
+    assertEquals(2, $view(Select.class).all().size(),
+        "one move-Select per part card (two seeded parts)");
   }
 }

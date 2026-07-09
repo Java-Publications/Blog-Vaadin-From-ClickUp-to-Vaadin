@@ -22,11 +22,11 @@ import com.svenruppert.flow.security.roles.VisibleFor;
 import com.svenruppert.flow.views.MainLayout;
 import com.svenruppert.flow.views.ui.EmptyState;
 import com.svenruppert.flow.views.ui.PageHeader;
-import com.svenruppert.publications.model.Publikationsort;
-import com.svenruppert.publications.model.Sprache;
-import com.svenruppert.publications.model.Sprachfassung;
-import com.svenruppert.publications.model.Teil;
-import com.svenruppert.publications.model.Veroeffentlichung;
+import com.svenruppert.publications.model.Language;
+import com.svenruppert.publications.model.LanguageVersion;
+import com.svenruppert.publications.model.Part;
+import com.svenruppert.publications.model.Publication;
+import com.svenruppert.publications.model.PublicationPlace;
 import com.svenruppert.publications.persistence.PublicationsProvider;
 import com.svenruppert.publications.persistence.PublicationsRepository;
 import com.vaadin.flow.component.Composite;
@@ -37,6 +37,7 @@ import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.tabs.Tab;
@@ -49,19 +50,21 @@ import com.vaadin.flow.router.Route;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
- * V2 — Sprachfassungs-Editor. Zu einem {@link Teil} wird je {@link Sprache} das
- * Manuskript samt geplanter Zeichenzahl gepflegt; zugleich ist die Maske der
- * Absprung in die Planung einer {@link Veroeffentlichung} (Sprachregel-gefiltert).
+ * V2 — Language-version editor. For a {@link Part}, the manuscript plus the
+ * planned character count are maintained per {@link Language}; at the same time
+ * this view is the jump-off point for planning a {@link Publication}
+ * (language-rule filtered).
  *
- * <p>Erste parametrisierte Route im Projekt: {@code teil/&lt;uuid&gt;}. Bediente
- * Prozesse: P0005, P0006; Absprung zu P0008/P0012.
+ * <p>First parametrised route in the project: {@code teil/<uuid>}. Served
+ * processes: P0005, P0006; jump-off to P0008/P0012.
  */
-@Route(value = SprachfassungView.NAV, layout = MainLayout.class)
+@Route(value = LanguageVersionView.NAV, layout = MainLayout.class)
 @VisibleFor(AuthorizationRole.USER)
-public class SprachfassungView extends Composite<VerticalLayout>
+public class LanguageVersionView extends Composite<VerticalLayout>
     implements HasUrlParameter<String>, I18nSupport {
 
   public static final String NAV = "teil";
@@ -69,9 +72,9 @@ public class SprachfassungView extends Composite<VerticalLayout>
   private final transient PublicationsRepository repo = PublicationsProvider.repository();
   private final Div body = new Div();
 
-  private transient Teil teil;
+  private transient Part part;
 
-  public SprachfassungView() {
+  public LanguageVersionView() {
     VerticalLayout root = getContent();
     root.setSizeFull();
     root.getStyle().set("gap", "var(--lumo-space-m)");
@@ -80,48 +83,47 @@ public class SprachfassungView extends Composite<VerticalLayout>
   }
 
   @Override
-  public void setParameter(BeforeEvent event, String teilId) {
-    this.teil = parse(teilId).flatMap(repo::findTeil).orElse(null);
+  public void setParameter(BeforeEvent event, String partId) {
+    this.part = parse(partId).flatMap(repo::findPart).orElse(null);
     render();
   }
 
-  private static java.util.Optional<UUID> parse(String id) {
+  private static Optional<UUID> parse(String id) {
     try {
-      return java.util.Optional.of(UUID.fromString(id));
+      return Optional.of(UUID.fromString(id));
     } catch (IllegalArgumentException e) {
-      return java.util.Optional.empty();
+      return Optional.empty();
     }
   }
 
   private void render() {
     body.removeAll();
-    if (teil == null) {
+    if (part == null) {
       body.add(new EmptyState(VaadinIcon.FILE_TEXT_O,
           tr("fassung.notfound.title", "Part not found"),
           tr("fassung.notfound.body", "Open a part from the topic workspace.")));
       return;
     }
 
-    String prefix = teil.issue() != null ? teil.issue().titel() : "";
+    String prefix = part.issue() != null ? part.issue().title() : "";
     body.add(new PageHeader(
         tr("fassung.heading", "Language versions"),
-        prefix + " · " + tr("fassung.part", "Part {0}", teil.reihenfolge())));
+        prefix + " · " + tr("fassung.part", "Part {0}", part.position())));
 
     Tabs tabs = new Tabs();
     Div editor = new Div();
     editor.setWidthFull();
 
-    List<Sprachfassung> fassungen = teil.sprachfassungen();
-    for (Sprachfassung f : fassungen) {
-      Tab tab = new Tab(f.sprache().name());
-      tab.getElement().setProperty("_sprache", f.sprache().name());
+    List<LanguageVersion> versions = part.languageVersions();
+    for (LanguageVersion v : versions) {
+      Tab tab = new Tab(v.language().name());
       tabs.add(tab);
     }
-    if (!fassungen.isEmpty()) {
+    if (!versions.isEmpty()) {
       tabs.addSelectedChangeListener(e -> {
         int idx = tabs.getSelectedIndex();
-        if (idx >= 0 && idx < teil.sprachfassungen().size()) {
-          showEditor(editor, teil.sprachfassungen().get(idx));
+        if (idx >= 0 && idx < part.languageVersions().size()) {
+          showEditor(editor, part.languageVersions().get(idx));
         }
       });
       body.add(tabs);
@@ -130,8 +132,8 @@ public class SprachfassungView extends Composite<VerticalLayout>
     body.add(addLanguageBar());
     body.add(editor);
 
-    if (!fassungen.isEmpty()) {
-      showEditor(editor, fassungen.get(0));
+    if (!versions.isEmpty()) {
+      showEditor(editor, versions.get(0));
     } else {
       editor.add(new EmptyState(VaadinIcon.PLUS,
           tr("fassung.none.title", "No language version yet"),
@@ -142,11 +144,11 @@ public class SprachfassungView extends Composite<VerticalLayout>
   private HorizontalLayout addLanguageBar() {
     HorizontalLayout bar = new HorizontalLayout();
     bar.getStyle().set("gap", "var(--lumo-space-s)");
-    Arrays.stream(Sprache.values())
-        .filter(s -> teil.fassung(s).isEmpty())
-        .forEach(s -> {
-          Button add = new Button(tr("fassung.add", "+ {0}", s.name()), e -> {
-            teil.addSprachfassung(s);
+    Arrays.stream(Language.values())
+        .filter(l -> part.versionFor(l).isEmpty())
+        .forEach(l -> {
+          Button add = new Button(tr("fassung.add", "+ {0}", l.name()), e -> {
+            part.addLanguageVersion(l);
             repo.persist();
             render();
           });
@@ -156,37 +158,37 @@ public class SprachfassungView extends Composite<VerticalLayout>
     return bar;
   }
 
-  private void showEditor(Div editor, Sprachfassung fassung) {
+  private void showEditor(Div editor, LanguageVersion version) {
     editor.removeAll();
 
-    TextField manuskript = new TextField(tr("fassung.manuscript", "Manuscript reference"));
-    manuskript.setWidthFull();
-    manuskript.setValue(fassung.manuskript() == null ? "" : fassung.manuskript());
-    manuskript.addValueChangeListener(e -> {
-      fassung.setManuskript(e.getValue());
+    TextField manuscript = new TextField(tr("fassung.manuscript", "Manuscript reference"));
+    manuscript.setWidthFull();
+    manuscript.setValue(version.manuscript() == null ? "" : version.manuscript());
+    manuscript.addValueChangeListener(e -> {
+      version.setManuscript(e.getValue());
       repo.persist();
     });
 
-    IntegerField zeichen = new IntegerField(tr("fassung.chars", "Planned characters"));
-    zeichen.setMin(0);
-    zeichen.setValue(fassung.geplanteZeichen());
-    zeichen.addValueChangeListener(e -> {
-      fassung.setGeplanteZeichen(e.getValue() == null ? 0 : e.getValue());
+    IntegerField characters = new IntegerField(tr("fassung.chars", "Planned characters"));
+    characters.setMin(0);
+    characters.setValue(version.plannedCharacters());
+    characters.addValueChangeListener(e -> {
+      version.setPlannedCharacters(e.getValue() == null ? 0 : e.getValue());
       repo.persist();
     });
 
-    HorizontalLayout fields = new HorizontalLayout(manuskript, zeichen);
+    HorizontalLayout fields = new HorizontalLayout(manuscript, characters);
     fields.setWidthFull();
-    fields.setFlexGrow(1, manuskript);
+    fields.setFlexGrow(1, manuscript);
     editor.add(fields);
 
-    Grid<Veroeffentlichung> grid = new Grid<>(Veroeffentlichung.class, false);
-    grid.addColumn(v -> v.ort().name()).setHeader(tr("fassung.col.place", "Place")).setFlexGrow(1);
-    grid.addComponentColumn(v -> PublicationUi.vertrieb(v.akquisestatus()))
+    Grid<Publication> grid = new Grid<>(Publication.class, false);
+    grid.addColumn(v -> v.place().name()).setHeader(tr("fassung.col.place", "Place")).setFlexGrow(1);
+    grid.addComponentColumn(v -> PublicationUi.acquisition(v.acquisitionStatus()))
         .setHeader(tr("fassung.col.acquisition", "Acquisition")).setAutoWidth(true);
-    grid.addComponentColumn(v -> PublicationUi.herstellung(v.herstellungsstatus()))
+    grid.addComponentColumn(v -> PublicationUi.production(v.productionStatus()))
         .setHeader(tr("fassung.col.production", "Production")).setAutoWidth(true);
-    grid.addColumn(v -> v.datum() == null ? "" : v.datum().toString())
+    grid.addColumn(v -> v.date() == null ? "" : v.date().toString())
         .setHeader(tr("fassung.col.date", "Date")).setAutoWidth(true);
     grid.addComponentColumn(v -> {
       Button open = new Button(tr("fassung.open", "Open"),
@@ -194,35 +196,35 @@ public class SprachfassungView extends Composite<VerticalLayout>
       open.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
       return open;
     }).setAutoWidth(true);
-    grid.setItems(fassung.veroeffentlichungen());
+    grid.setItems(version.publications());
     grid.setAllRowsVisible(true);
     editor.add(grid);
 
-    editor.add(planBar(fassung));
+    editor.add(planBar(version));
   }
 
-  private HorizontalLayout planBar(Sprachfassung fassung) {
-    ComboBox<Publikationsort> ortWahl = new ComboBox<>(tr("fassung.plan.place", "Place"));
-    List<Publikationsort> zulaessig = repo.orteFuer(fassung.sprache());
-    ortWahl.setItems(zulaessig);
-    ortWahl.setItemLabelGenerator(Publikationsort::name);
-    ortWahl.setPlaceholder(tr("fassung.plan.hint", "Only places that support {0}", fassung.sprache().name()));
-    ortWahl.setWidth("320px");
+  private HorizontalLayout planBar(LanguageVersion version) {
+    ComboBox<PublicationPlace> placeChoice = new ComboBox<>(tr("fassung.plan.place", "Place"));
+    List<PublicationPlace> admissible = repo.placesFor(version.language());
+    placeChoice.setItems(admissible);
+    placeChoice.setItemLabelGenerator(PublicationPlace::name);
+    placeChoice.setPlaceholder(tr("fassung.plan.hint", "Only places that support {0}", version.language().name()));
+    placeChoice.setWidth("320px");
 
     Button plan = new Button(tr("fassung.plan", "Plan publication"), e -> {
-      Publikationsort ort = ortWahl.getValue();
-      if (ort == null) {
-        ortWahl.setInvalid(true);
+      PublicationPlace place = placeChoice.getValue();
+      if (place == null) {
+        placeChoice.setInvalid(true);
         return;
       }
-      fassung.planeVeroeffentlichung(ort);
+      version.planPublication(place);
       repo.persist();
       render();
     });
     plan.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
-    HorizontalLayout bar = new HorizontalLayout(ortWahl, plan);
-    bar.setDefaultVerticalComponentAlignment(com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.END);
+    HorizontalLayout bar = new HorizontalLayout(placeChoice, plan);
+    bar.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.END);
     bar.getStyle().set("margin-top", "var(--lumo-space-m)");
     return bar;
   }

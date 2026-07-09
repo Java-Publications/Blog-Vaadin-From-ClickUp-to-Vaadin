@@ -20,10 +20,10 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.svenruppert.dependencies.core.logger.HasLogger;
 import com.svenruppert.dependencies.core.net.HttpStatus;
 import com.svenruppert.dependencies.core.net.MediaType;
-import com.svenruppert.publications.model.Arbeitszustand;
+import com.svenruppert.publications.model.EditorialState;
 import com.svenruppert.publications.model.Issue;
+import com.svenruppert.publications.model.Part;
 import com.svenruppert.publications.model.Tag;
-import com.svenruppert.publications.model.Teil;
 import com.svenruppert.publications.persistence.PublicationsRepository;
 
 import java.io.IOException;
@@ -38,14 +38,13 @@ import java.util.Map;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * ClickUp-Import als ETL. Die Extraktion zieht die rohen JSON-Antworten der
- * ClickUp-Schnittstelle einmalig; an Transformation und Laden lässt sich
- * anschließend beliebig oft gegen diese lokale Kopie iterieren. Der zentrale
- * Akt der Transformation ist die Verteilung des konflierten ClickUp-Status auf
- * die (hier redaktionelle) Dimension; das Laden ruht auf der vermerkten
- * {@link Issue#herkunft() Herkunft} und ist damit idempotent.
+ * ClickUp import as ETL. Extraction pulls the raw JSON responses of the ClickUp
+ * API once; transformation and loading can then iterate against that local copy
+ * arbitrarily often. The central act of the transformation is distributing the
+ * conflated ClickUp status onto the (here editorial) dimension; loading rests on
+ * the recorded {@link Issue#origin() origin} and is therefore idempotent.
  *
- * <p>Wegwerfmodul für den Produktivbetrieb, in der Entwicklung ein Arbeitspferd.
+ * <p>A throwaway module for production use, a workhorse in development.
  */
 public final class ClickUpImportService implements HasLogger {
 
@@ -55,9 +54,9 @@ public final class ClickUpImportService implements HasLogger {
   private final ObjectMapper mapper = new ObjectMapper();
 
   /**
-   * Zieht die Tasks einer ClickUp-Liste über die echte API und gibt die rohe
-   * JSON-Antwort zurück. {@code token} ist das ClickUp-API-Token, {@code listId}
-   * die Ziel-Liste.
+   * Pulls the tasks of a ClickUp list through the real API and returns the raw
+   * JSON response. {@code token} is the ClickUp API token, {@code listId} the
+   * target list.
    */
   public String extract(String token, String listId) throws IOException, InterruptedException {
     HttpClient client = HttpClient.newHttpClient();
@@ -77,57 +76,57 @@ public final class ClickUpImportService implements HasLogger {
   }
 
   /**
-   * Transformiert die rohe ClickUp-JSON und lädt sie idempotent in das
-   * Repository. Ein bereits per Herkunft bekanntes Issue wird übersprungen — ein
-   * Wiederholungslauf erzeugt daher keine Dubletten.
+   * Transforms the raw ClickUp JSON and loads it idempotently into the
+   * repository. An issue already known by its origin is skipped — a repeat run
+   * therefore creates no duplicates.
    */
   public ImportReport transformAndLoad(String rawJson, PublicationsRepository repo) {
     ClickUpList list = mapper.readValue(rawJson, ClickUpList.class);
-    int angelegt = 0;
-    int uebersprungen = 0;
-    Map<String, Integer> verteilung = new LinkedHashMap<>();
+    int created = 0;
+    int skipped = 0;
+    Map<String, Integer> distribution = new LinkedHashMap<>();
 
     List<ClickUpTask> tasks = list.tasks() == null ? List.of() : list.tasks();
     for (ClickUpTask task : tasks) {
       String src = task.status() == null || task.status().status() == null
           ? "(none)" : task.status().status();
-      Arbeitszustand zustand = mapStatus(src);
-      verteilung.merge(src + " → " + zustand.name(), 1, Integer::sum);
+      EditorialState state = mapStatus(src);
+      distribution.merge(src + " → " + state.name(), 1, Integer::sum);
 
-      if (repo.findIssueByHerkunft(task.id()).isPresent()) {
-        uebersprungen++;
+      if (repo.findIssueByOrigin(task.id()).isPresent()) {
+        skipped++;
         continue;
       }
       Issue issue = new Issue(task.name());
-      issue.setHerkunft(task.id());
+      issue.setOrigin(task.id());
       if (task.tags() != null) {
         task.tags().stream()
             .filter(t -> t.name() != null && !t.name().isBlank())
             .forEach(t -> issue.addTag(new Tag(t.name())));
       }
-      Teil teil = issue.addTeil();
-      if (zustand != Arbeitszustand.BACKLOG) {
-        teil.wechsleZustand(zustand, IMPORT_ACTOR);
+      Part part = issue.addPart();
+      if (state != EditorialState.BACKLOG) {
+        part.changeState(state, IMPORT_ACTOR);
       }
-      repo.datenwurzel().addIssue(issue);
-      angelegt++;
+      repo.dataRoot().addIssue(issue);
+      created++;
     }
     repo.persist();
-    logger().info("ClickUp transform+load: {} created, {} skipped", angelegt, uebersprungen);
-    return new ImportReport(angelegt, 0, uebersprungen, verteilung);
+    logger().info("ClickUp transform+load: {} created, {} skipped", created, skipped);
+    return new ImportReport(created, 0, skipped, distribution);
   }
 
-  /** Verteilt den konflierten ClickUp-Status auf den redaktionellen Arbeitszustand. */
-  public static Arbeitszustand mapStatus(String clickup) {
+  /** Distributes the conflated ClickUp status onto the editorial state. */
+  public static EditorialState mapStatus(String clickup) {
     String s = clickup == null ? "" : clickup.toLowerCase().strip();
     return switch (s) {
-      case "in progress", "in-progress", "progress" -> Arbeitszustand.IN_PROGRESS;
-      case "review", "in review" -> Arbeitszustand.REVIEW;
-      case "planning", "in planning", "planned", "to do", "todo" -> Arbeitszustand.IN_PLANUNG;
-      case "done", "complete", "completed", "closed", "published" -> Arbeitszustand.DONE;
-      case "skipped" -> Arbeitszustand.SKIPPED;
-      case "cancelled", "canceled" -> Arbeitszustand.CANCELLED;
-      default -> Arbeitszustand.BACKLOG;
+      case "in progress", "in-progress", "progress" -> EditorialState.IN_PROGRESS;
+      case "review", "in review" -> EditorialState.REVIEW;
+      case "planning", "in planning", "planned", "to do", "todo" -> EditorialState.IN_PLANNING;
+      case "done", "complete", "completed", "closed", "published" -> EditorialState.DONE;
+      case "skipped" -> EditorialState.SKIPPED;
+      case "cancelled", "canceled" -> EditorialState.CANCELLED;
+      default -> EditorialState.BACKLOG;
     };
   }
 

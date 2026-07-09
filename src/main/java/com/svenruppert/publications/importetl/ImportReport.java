@@ -19,21 +19,21 @@ package com.svenruppert.publications.importetl;
 import java.util.Map;
 
 /**
- * Ergebnis eines Transform-und-Lade-Laufs.
+ * Result of a transform-and-load run.
  *
- * @param angelegt        neu erzeugte Issues
- * @param aktualisiert    aktualisierte Issues (idempotenter Re-Import ändert nichts)
- * @param uebersprungen   bereits vorhandene Issues (per Herkunft erkannt)
- * @param statusVerteilung Abbildung des konflierten ClickUp-Status auf die
- *                          entflochtene Dimension, gezählt (für die Konsole)
+ * @param created            newly created issues
+ * @param updated            updated issues (an idempotent re-import changes nothing)
+ * @param skipped            already-present issues (recognized by origin)
+ * @param statusDistribution the mapping of the conflated ClickUp status onto the
+ *                           disentangled dimension, counted (for the console)
  */
 public record ImportReport(
-    int angelegt,
-    int aktualisiert,
-    int uebersprungen,
-    Map<String, Integer> statusVerteilung) {
+    int created,
+    int updated,
+    int skipped,
+    Map<String, Integer> statusDistribution) {
 
-  public int gesamt() {
-    return angelegt + aktualisiert + uebersprungen;
+  public int total() {
+    return created + updated + skipped;
   }
 }

@@ -17,21 +17,21 @@
 package com.svenruppert.publications.model;
 
 /**
- * Redaktioneller Arbeitszustand eines {@link Teil}s — die erste der drei
- * orthogonalen Statusdimensionen. Feste Reihenfolge bei freien Übergängen;
- * mehrere nebeneinanderstehende Endzustände.
+ * Editorial state of a {@link Part} — the first of the three orthogonal status
+ * dimensions. Fixed order with free transitions; several terminal states stand
+ * side by side.
  */
-public enum Arbeitszustand {
+public enum EditorialState {
   BACKLOG,
-  IN_PLANUNG,
+  IN_PLANNING,
   IN_PROGRESS,
   REVIEW,
   DONE,
   SKIPPED,
   CANCELLED;
 
-  /** Die Endzustände dieser Dimension. */
-  public boolean isEndzustand() {
+  /** The terminal states of this dimension. */
+  public boolean isTerminal() {
     return this == DONE || this == SKIPPED || this == CANCELLED;
   }
 }

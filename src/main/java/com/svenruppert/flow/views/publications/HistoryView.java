@@ -22,8 +22,8 @@ import com.svenruppert.flow.security.roles.VisibleFor;
 import com.svenruppert.flow.views.MainLayout;
 import com.svenruppert.flow.views.ui.EmptyState;
 import com.svenruppert.flow.views.ui.PageHeader;
-import com.svenruppert.publications.model.Statusverlauf;
-import com.svenruppert.publications.model.Statuswechsel;
+import com.svenruppert.publications.model.StatusChange;
+import com.svenruppert.publications.model.StatusHistory;
 import com.svenruppert.publications.persistence.PublicationsProvider;
 import com.svenruppert.publications.persistence.PublicationsRepository;
 import com.vaadin.flow.component.Composite;
@@ -43,15 +43,15 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * V5 — Verlaufsansicht. Zeigt eine der drei Statusketten lückenlos, geordnet
- * nach der Folgenummer — als Prüfpfad und sichtbarer Beleg der Orthogonalität.
- * Rein lesend. Erreichbar über {@code verlauf/teil/&lt;id&gt;},
- * {@code verlauf/akquise/&lt;id&gt;}, {@code verlauf/herstellung/&lt;id&gt;} oder ohne
- * Pfad als Auswahlhinweis. Bedienter Prozess: P0015.
+ * V5 — History view. Shows one of the three status chains completely, ordered by
+ * the sequence number — as an audit trail and a visible proof of orthogonality.
+ * Read-only. Reachable via {@code verlauf/teil/<id>},
+ * {@code verlauf/akquise/<id>}, {@code verlauf/herstellung/<id>} or without a path
+ * as a selection hint. Served process: P0015.
  */
-@Route(value = VerlaufView.NAV, layout = MainLayout.class)
+@Route(value = HistoryView.NAV, layout = MainLayout.class)
 @VisibleFor(AuthorizationRole.USER)
-public class VerlaufView extends Composite<VerticalLayout>
+public class HistoryView extends Composite<VerticalLayout>
     implements HasUrlParameter<String>, I18nSupport {
 
   public static final String NAV = "verlauf";
@@ -59,7 +59,7 @@ public class VerlaufView extends Composite<VerticalLayout>
   private final transient PublicationsRepository repo = PublicationsProvider.repository();
   private final Div body = new Div();
 
-  public VerlaufView() {
+  public HistoryView() {
     VerticalLayout root = getContent();
     root.setSizeFull();
     root.getStyle().set("gap", "var(--lumo-space-m)");
@@ -82,14 +82,14 @@ public class VerlaufView extends Composite<VerticalLayout>
       return;
     }
     switch (kind) {
-      case "teil" -> repo.findTeil(id.get())
-          .ifPresentOrElse(t -> show(tr("verlauf.dim.editorial", "Editorial state"), t.arbeit()),
+      case "teil" -> repo.findPart(id.get())
+          .ifPresentOrElse(p -> show(tr("verlauf.dim.editorial", "Editorial state"), p.editorialWork()),
               this::showEmpty);
-      case "akquise" -> repo.findVeroeffentlichung(id.get())
-          .ifPresentOrElse(v -> show(tr("verlauf.dim.acquisition", "Acquisition"), v.akquise()),
+      case "akquise" -> repo.findPublication(id.get())
+          .ifPresentOrElse(v -> show(tr("verlauf.dim.acquisition", "Acquisition"), v.acquisition()),
               this::showEmpty);
-      case "herstellung" -> repo.findVeroeffentlichung(id.get())
-          .ifPresentOrElse(v -> show(tr("verlauf.dim.production", "Production"), v.herstellung()),
+      case "herstellung" -> repo.findPublication(id.get())
+          .ifPresentOrElse(v -> show(tr("verlauf.dim.production", "Production"), v.production()),
               this::showEmpty);
       default -> showEmpty();
     }
@@ -109,18 +109,18 @@ public class VerlaufView extends Composite<VerticalLayout>
         tr("verlauf.empty.body", "Open a history from a part or a publication.")));
   }
 
-  private void show(String dimension, Statusverlauf<?> verlauf) {
+  private void show(String dimension, StatusHistory<?> history) {
     body.add(new PageHeader(
         tr("verlauf.heading", "History — {0}", dimension),
         tr("verlauf.subtitle", "Ordered by sequence number, not by timestamp.")));
 
-    List<Statuswechsel<?>> rows = new ArrayList<>(verlauf.ereignisse());
-    Grid<Statuswechsel<?>> grid = new Grid<>();
-    grid.addColumn(Statuswechsel::folge).setHeader(tr("verlauf.col.seq", "Seq")).setAutoWidth(true);
-    grid.addColumn(w -> String.valueOf(w.von())).setHeader(tr("verlauf.col.from", "From")).setAutoWidth(true);
-    grid.addColumn(w -> String.valueOf(w.nach())).setHeader(tr("verlauf.col.to", "To")).setAutoWidth(true);
-    grid.addColumn(w -> w.akteur() == null ? "—" : w.akteur()).setHeader(tr("verlauf.col.actor", "Actor")).setFlexGrow(1);
-    grid.addColumn(w -> w.zeitpunkt().toString()).setHeader(tr("verlauf.col.time", "Timestamp")).setAutoWidth(true);
+    List<StatusChange<?>> rows = new ArrayList<>(history.events());
+    Grid<StatusChange<?>> grid = new Grid<>();
+    grid.addColumn(StatusChange::sequence).setHeader(tr("verlauf.col.seq", "Seq")).setAutoWidth(true);
+    grid.addColumn(c -> String.valueOf(c.from())).setHeader(tr("verlauf.col.from", "From")).setAutoWidth(true);
+    grid.addColumn(c -> String.valueOf(c.to())).setHeader(tr("verlauf.col.to", "To")).setAutoWidth(true);
+    grid.addColumn(c -> c.actor() == null ? "—" : c.actor()).setHeader(tr("verlauf.col.actor", "Actor")).setFlexGrow(1);
+    grid.addColumn(c -> c.timestamp().toString()).setHeader(tr("verlauf.col.time", "Timestamp")).setAutoWidth(true);
     grid.setItems(rows);
     grid.setAllRowsVisible(true);
     body.add(grid);

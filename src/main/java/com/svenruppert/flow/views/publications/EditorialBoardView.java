@@ -24,8 +24,8 @@ import com.svenruppert.flow.views.MainLayout;
 import com.svenruppert.flow.views.ui.PageHeader;
 import com.svenruppert.flow.views.ui.TemplateBrand;
 import com.svenruppert.jsentinel.authorization.api.SubjectStores;
-import com.svenruppert.publications.model.Arbeitszustand;
-import com.svenruppert.publications.model.Teil;
+import com.svenruppert.publications.model.EditorialState;
+import com.svenruppert.publications.model.Part;
 import com.svenruppert.publications.persistence.PublicationsProvider;
 import com.svenruppert.publications.persistence.PublicationsRepository;
 import com.vaadin.flow.component.Composite;
@@ -34,29 +34,27 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.FlexLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.select.Select;
+import com.vaadin.flow.router.Route;
 
 import java.util.List;
 
-import com.vaadin.flow.router.Route;
-
 /**
- * V3 — Redaktionstafel. Führt den redaktionellen Fortschritt aller {@link Teil}e
- * auf einen Blick: Spalten je {@link Arbeitszustand}, in denen die Teile als
- * Karten liegen. Das Fortschreiben des Zustands geschieht über den Zustands-
- * {@link Select} auf jeder Karte (die barrierearme, testbare Entsprechung des
- * Karten-Ziehens; Drag&amp;Drop ist eine spätere Ausbaustufe). Bediente Prozesse:
- * P0007, P0020 (redaktionelle Dimension).
+ * V3 — Editorial board. Shows the editorial progress of all {@link Part}s at a
+ * glance: one column per {@link EditorialState}, in which the parts sit as cards.
+ * Advancing the state happens through the state {@link Select} on each card (the
+ * low-barrier, testable equivalent of dragging a card; drag&drop is a later
+ * enhancement). Served processes: P0007, P0020 (editorial dimension).
  */
-@Route(value = RedaktionstafelView.NAV, layout = MainLayout.class)
+@Route(value = EditorialBoardView.NAV, layout = MainLayout.class)
 @VisibleFor(AuthorizationRole.USER)
-public class RedaktionstafelView extends Composite<VerticalLayout> implements I18nSupport {
+public class EditorialBoardView extends Composite<VerticalLayout> implements I18nSupport {
 
   public static final String NAV = "redaktion";
 
   private final transient PublicationsRepository repo = PublicationsProvider.repository();
   private final FlexLayout board = new FlexLayout();
 
-  public RedaktionstafelView() {
+  public EditorialBoardView() {
     VerticalLayout root = getContent();
     root.setSizeFull();
     root.getStyle().set("gap", "var(--lumo-space-m)");
@@ -77,18 +75,18 @@ public class RedaktionstafelView extends Composite<VerticalLayout> implements I1
 
   private void refresh() {
     board.removeAll();
-    List<Teil> alle = repo.issues().stream()
-        .flatMap(i -> i.teile().stream())
+    List<Part> all = repo.issues().stream()
+        .flatMap(i -> i.parts().stream())
         .toList();
-    for (Arbeitszustand zustand : Arbeitszustand.values()) {
-      List<Teil> inColumn = alle.stream()
-          .filter(t -> t.arbeitszustand() == zustand)
+    for (EditorialState state : EditorialState.values()) {
+      List<Part> inColumn = all.stream()
+          .filter(p -> p.editorialState() == state)
           .toList();
-      board.add(column(zustand, inColumn));
+      board.add(column(state, inColumn));
     }
   }
 
-  private Div column(Arbeitszustand zustand, List<Teil> teile) {
+  private Div column(EditorialState state, List<Part> parts) {
     Div col = new Div();
     col.getStyle().set("flex", "0 0 240px");
     col.getStyle().set("background", "var(--lumo-contrast-5pct)");
@@ -98,50 +96,48 @@ public class RedaktionstafelView extends Composite<VerticalLayout> implements I1
     col.getStyle().set("flex-direction", "column");
     col.getStyle().set("gap", "var(--lumo-space-s)");
 
-    Div head = new Div(PublicationUi.arbeitszustand(zustand),
-        new Span(" " + teile.size()));
+    Div head = new Div(PublicationUi.editorialState(state), new Span(" " + parts.size()));
     head.getStyle().set("font-weight", "600");
     col.add(head);
 
-    for (Teil teil : teile) {
-      col.add(card(teil));
+    for (Part part : parts) {
+      col.add(card(part));
     }
     return col;
   }
 
-  private Div card(Teil teil) {
+  private Div card(Part part) {
     Div card = new Div();
     card.addClassName(TemplateBrand.CSS_CARD);
     card.getStyle().set("padding", "var(--lumo-space-s)");
 
-    String prefix = teil.issue() != null ? teil.issue().titel() : "";
+    String prefix = part.issue() != null ? part.issue().title() : "";
     Span title = new Span(prefix);
     title.getStyle().set("font-weight", "600");
     title.getStyle().set("display", "block");
-    Span part = new Span(tr("tafel.part", "Part {0}", teil.reihenfolge())
-        + " · " + teil.sprachfassungen().size() + " "
-        + tr("tafel.versions", "versions"));
-    part.getStyle().set("color", "var(--lumo-secondary-text-color)");
-    part.getStyle().set("font-size", "var(--lumo-font-size-s)");
-    part.getStyle().set("display", "block");
+    Span info = new Span(tr("tafel.part", "Part {0}", part.position())
+        + " · " + part.languageVersions().size() + " " + tr("tafel.versions", "versions"));
+    info.getStyle().set("color", "var(--lumo-secondary-text-color)");
+    info.getStyle().set("font-size", "var(--lumo-font-size-s)");
+    info.getStyle().set("display", "block");
 
-    Select<Arbeitszustand> move = new Select<>();
-    move.setItems(Arbeitszustand.values());
-    move.setValue(teil.arbeitszustand());
+    Select<EditorialState> move = new Select<>();
+    move.setItems(EditorialState.values());
+    move.setValue(part.editorialState());
     move.setWidthFull();
     move.addValueChangeListener(e -> {
-      if (e.getValue() != null && e.getValue() != teil.arbeitszustand()) {
-        teil.wechsleZustand(e.getValue(), akteur());
+      if (e.getValue() != null && e.getValue() != part.editorialState()) {
+        part.changeState(e.getValue(), actor());
         repo.persist();
         refresh();
       }
     });
 
-    card.add(title, part, move);
+    card.add(title, info, move);
     return card;
   }
 
-  private static String akteur() {
+  private static String actor() {
     return SubjectStores.subjectStore().currentSubject(AppUser.class)
         .map(AppUser::name).orElse("system");
   }

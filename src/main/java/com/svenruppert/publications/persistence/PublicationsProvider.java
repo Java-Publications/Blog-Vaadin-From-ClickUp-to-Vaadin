@@ -19,10 +19,10 @@ package com.svenruppert.publications.persistence;
 import java.util.Objects;
 
 /**
- * Lazy-Holder-Singleton für das {@link PublicationsRepository} mit Test-Seam —
- * analog zu {@code UserDirectoryProvider}. Das Eclipse-Store-gestützte
- * Repository wird erst beim ersten Zugriff geöffnet, nicht beim Klassenladen;
- * Tests setzen vorher via {@link #setRepository} eine In-Memory-Variante.
+ * Lazy-holder singleton for the {@link PublicationsRepository} with a test seam —
+ * analogous to {@code UserDirectoryProvider}. The Eclipse-Store-backed repository
+ * opens on first access, not at class-load time; tests set an in-memory variant
+ * beforehand via {@link #setRepository}.
  */
 public final class PublicationsProvider {
 

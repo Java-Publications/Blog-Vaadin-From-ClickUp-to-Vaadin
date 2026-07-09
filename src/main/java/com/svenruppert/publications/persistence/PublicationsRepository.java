@@ -16,13 +16,13 @@
 
 package com.svenruppert.publications.persistence;
 
-import com.svenruppert.publications.model.Datenwurzel;
+import com.svenruppert.publications.model.DataRoot;
 import com.svenruppert.publications.model.Issue;
-import com.svenruppert.publications.model.Publikationsort;
-import com.svenruppert.publications.model.Sprache;
-import com.svenruppert.publications.model.Sprachfassung;
-import com.svenruppert.publications.model.Teil;
-import com.svenruppert.publications.model.Veroeffentlichung;
+import com.svenruppert.publications.model.Language;
+import com.svenruppert.publications.model.LanguageVersion;
+import com.svenruppert.publications.model.Part;
+import com.svenruppert.publications.model.Publication;
+import com.svenruppert.publications.model.PublicationPlace;
 
 import java.util.List;
 import java.util.Objects;
@@ -31,121 +31,121 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Fachschnittstelle über die {@link Datenwurzel} — analog zu
- * {@code PersistentUserDirectory}. Lädt den Graph einmal, bietet Lese-Abfragen
- * und persistiert nach jeder Mutation über {@link PublicationsPersistence}.
- * Views mutieren die Aggregate direkt (deren eigene Mutatoren) und rufen danach
- * {@link #persist()} — oder nutzen die {@code neu…}/{@code loesche…}-Helfer,
- * die selbst persistieren.
+ * Domain-facing facade over the {@link DataRoot} — analogous to
+ * {@code PersistentUserDirectory}. Loads the graph once, offers read queries and
+ * persists after every mutation through {@link PublicationsPersistence}. Views
+ * mutate the aggregates directly (their own mutators) and then call
+ * {@link #persist()} — or use the {@code create…}/{@code delete…} helpers that
+ * persist themselves.
  */
 public final class PublicationsRepository {
 
   private final PublicationsPersistence persistence;
-  private final Datenwurzel wurzel;
+  private final DataRoot root;
 
   public PublicationsRepository(PublicationsPersistence persistence) {
     this.persistence = Objects.requireNonNull(persistence, "persistence");
-    this.wurzel = persistence.load();
+    this.root = persistence.load();
   }
 
   public PublicationsRepository() {
     this(new EclipseStorePublicationsPersistence());
   }
 
-  // ── Lesen ────────────────────────────────────────────────────────────────
+  // ── reads ──────────────────────────────────────────────────────────────
 
   public List<Issue> issues() {
-    return wurzel.issues();
+    return root.issues();
   }
 
-  public List<Publikationsort> publikationsorte() {
-    return wurzel.publikationsorte();
+  public List<PublicationPlace> publicationPlaces() {
+    return root.publicationPlaces();
   }
 
   public Optional<Issue> findIssue(UUID id) {
-    return wurzel.issues().stream().filter(i -> i.id().equals(id)).findFirst();
+    return root.issues().stream().filter(i -> i.id().equals(id)).findFirst();
   }
 
-  public Optional<Issue> findIssueByHerkunft(String herkunft) {
-    if (herkunft == null) {
+  public Optional<Issue> findIssueByOrigin(String origin) {
+    if (origin == null) {
       return Optional.empty();
     }
-    return wurzel.issues().stream()
-        .filter(i -> herkunft.equals(i.herkunft()))
+    return root.issues().stream()
+        .filter(i -> origin.equals(i.origin()))
         .findFirst();
   }
 
-  public Optional<Teil> findTeil(UUID id) {
-    return wurzel.issues().stream()
-        .flatMap(i -> i.teile().stream())
-        .filter(t -> t.id().equals(id))
+  public Optional<Part> findPart(UUID id) {
+    return root.issues().stream()
+        .flatMap(i -> i.parts().stream())
+        .filter(p -> p.id().equals(id))
         .findFirst();
   }
 
-  public Optional<Sprachfassung> findFassung(UUID id) {
-    return wurzel.issues().stream()
-        .flatMap(i -> i.teile().stream())
-        .flatMap(t -> t.sprachfassungen().stream())
-        .filter(f -> f.id().equals(id))
+  public Optional<LanguageVersion> findVersion(UUID id) {
+    return root.issues().stream()
+        .flatMap(i -> i.parts().stream())
+        .flatMap(p -> p.languageVersions().stream())
+        .filter(v -> v.id().equals(id))
         .findFirst();
   }
 
-  public List<Veroeffentlichung> alleVeroeffentlichungen() {
-    return wurzel.issues().stream()
-        .flatMap(i -> i.teile().stream())
-        .flatMap(t -> t.sprachfassungen().stream())
-        .flatMap(f -> f.veroeffentlichungen().stream())
+  public List<Publication> allPublications() {
+    return root.issues().stream()
+        .flatMap(i -> i.parts().stream())
+        .flatMap(p -> p.languageVersions().stream())
+        .flatMap(v -> v.publications().stream())
         .toList();
   }
 
-  public Optional<Veroeffentlichung> findVeroeffentlichung(UUID id) {
-    return alleVeroeffentlichungen().stream().filter(v -> v.id().equals(id)).findFirst();
+  public Optional<Publication> findPublication(UUID id) {
+    return allPublications().stream().filter(v -> v.id().equals(id)).findFirst();
   }
 
-  public Optional<Publikationsort> findOrt(UUID id) {
-    return wurzel.publikationsorte().stream().filter(o -> o.id().equals(id)).findFirst();
+  public Optional<PublicationPlace> findPlace(UUID id) {
+    return root.publicationPlaces().stream().filter(o -> o.id().equals(id)).findFirst();
   }
 
-  /** Orte, deren unterstützte Sprachen {@code sprache} einschließen (Sprachregel). */
-  public List<Publikationsort> orteFuer(Sprache sprache) {
-    return wurzel.publikationsorte().stream()
-        .filter(o -> o.unterstuetzt(sprache))
+  /** Places whose supported languages include {@code language} (language rule). */
+  public List<PublicationPlace> placesFor(Language language) {
+    return root.publicationPlaces().stream()
+        .filter(o -> o.supports(language))
         .toList();
   }
 
-  // ── Mutieren (mit Persistierung) ──────────────────────────────────────────
+  // ── mutations (with persistence) ─────────────────────────────────────────
 
-  public Issue neuesIssue(String titel) {
-    Issue issue = new Issue(titel);
-    wurzel.addIssue(issue);
+  public Issue createIssue(String title) {
+    Issue issue = new Issue(title);
+    root.addIssue(issue);
     persist();
     return issue;
   }
 
-  public void loescheIssue(Issue issue) {
-    wurzel.removeIssue(issue);
+  public void deleteIssue(Issue issue) {
+    root.removeIssue(issue);
     persist();
   }
 
-  public Publikationsort neuerPublikationsort(String name, Set<Sprache> unterstuetzteSprachen) {
-    Publikationsort ort = new Publikationsort(name, unterstuetzteSprachen);
-    wurzel.addPublikationsort(ort);
+  public PublicationPlace createPublicationPlace(String name, Set<Language> supportedLanguages) {
+    PublicationPlace place = new PublicationPlace(name, supportedLanguages);
+    root.addPublicationPlace(place);
     persist();
-    return ort;
+    return place;
   }
 
-  public void loeschePublikationsort(Publikationsort ort) {
-    wurzel.removePublikationsort(ort);
+  public void deletePublicationPlace(PublicationPlace place) {
+    root.removePublicationPlace(place);
     persist();
   }
 
-  /** Persistiert den aktuellen Stand nach In-place-Mutation der Aggregate. */
+  /** Persists the current state after in-place mutation of the aggregates. */
   public void persist() {
-    persistence.save(wurzel);
+    persistence.save(root);
   }
 
-  /** Die lebende Datenwurzel (für Import/Rekonstruktion). */
-  public Datenwurzel datenwurzel() {
-    return wurzel;
+  /** The live data root (for import/reconstruction). */
+  public DataRoot dataRoot() {
+    return root;
   }
 }

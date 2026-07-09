@@ -18,9 +18,11 @@ package junit.com.svenruppert.flow.views.publications;
 
 import com.svenruppert.flow.security.model.AppUser;
 import com.svenruppert.flow.security.roles.AuthorizationRole;
-import com.svenruppert.flow.views.publications.PublikationsorteView;
+import com.svenruppert.flow.views.publications.LanguageVersionView;
 import com.svenruppert.jsentinel.authorization.api.SubjectStores;
-import com.svenruppert.publications.model.Sprache;
+import com.svenruppert.publications.model.Issue;
+import com.svenruppert.publications.model.Language;
+import com.svenruppert.publications.model.Part;
 import com.svenruppert.publications.persistence.InMemoryPublicationsPersistence;
 import com.svenruppert.publications.persistence.PublicationsProvider;
 import com.svenruppert.publications.persistence.PublicationsRepository;
@@ -29,6 +31,7 @@ import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H1;
+import com.vaadin.flow.component.html.H3;
 import junit.com.svenruppert.flow.TestSupport;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,14 +40,16 @@ import org.junit.jupiter.api.Test;
 
 import java.util.EnumSet;
 import java.util.Locale;
-import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@DisplayName("PublikationsorteView (V6) — master-data grid")
-class PublikationsorteViewBrowserlessTest extends BrowserlessTest {
+@DisplayName("LanguageVersionView (V2) — parametrised route + editor")
+class LanguageVersionViewBrowserlessTest extends BrowserlessTest {
+
+  private UUID partId;
 
   @BeforeEach
   void setUp() {
@@ -55,8 +60,12 @@ class PublikationsorteViewBrowserlessTest extends BrowserlessTest {
     }
     PublicationsRepository repo =
         new PublicationsRepository(new InMemoryPublicationsPersistence());
-    repo.neuerPublikationsort("svenruppert.com", Set.of(Sprache.DEUTSCH, Sprache.ENGLISCH));
-    repo.neuerPublikationsort("DZone", Set.of(Sprache.ENGLISCH));
+    repo.createPublicationPlace("svenruppert.com", java.util.Set.of(Language.GERMAN));
+    Issue issue = repo.createIssue("Blog – Navigation – Coupled navigation");
+    Part part = issue.addPart();
+    part.addLanguageVersion(Language.GERMAN);
+    repo.persist();
+    partId = part.id();
     PublicationsProvider.setRepository(repo);
 
     SubjectStores.subjectStore().setCurrentSubject(
@@ -71,14 +80,30 @@ class PublikationsorteViewBrowserlessTest extends BrowserlessTest {
   }
 
   @Test
-  @DisplayName("NAV is 'orte'; grid lists the places with a '+ Place' action")
-  void listsPlaces() {
-    assertEquals("orte", PublikationsorteView.NAV);
-    UI.getCurrent().navigate(PublikationsorteView.class);
-    assertEquals("Publication places", $view(H1.class).first().getText());
+  @DisplayName("NAV constant is 'teil'")
+  void navConstant() {
+    assertEquals("teil", LanguageVersionView.NAV);
+  }
+
+  @Test
+  @DisplayName("renders the editor for a valid part id — header, publications grid, plan button")
+  void rendersEditorForValidPart() {
+    UI.getCurrent().navigate(LanguageVersionView.class, partId.toString());
+    H1 heading = $view(H1.class).first();
+    assertEquals("Language versions", heading.getText());
     Grid<?> grid = $view(Grid.class).first();
-    assertEquals(2, grid.getListDataView().getItemCount());
+    assertEquals(0, grid.getListDataView().getItemCount());
     assertTrue($view(Button.class).all().stream()
-        .map(Button::getText).collect(Collectors.toList()).contains("+ Place"));
+            .map(Button::getText).collect(Collectors.toList())
+            .contains("Plan publication"),
+        "editor must offer the language-rule-guarded plan action");
+  }
+
+  @Test
+  @DisplayName("unknown part id → empty state")
+  void notFoundForUnknownPart() {
+    UI.getCurrent().navigate(LanguageVersionView.class, UUID.randomUUID().toString());
+    H3 empty = $view(H3.class).first();
+    assertEquals("Part not found", empty.getText());
   }
 }

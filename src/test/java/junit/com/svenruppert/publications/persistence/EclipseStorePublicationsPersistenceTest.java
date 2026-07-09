@@ -16,16 +16,16 @@
 
 package junit.com.svenruppert.publications.persistence;
 
-import com.svenruppert.publications.model.Arbeitszustand;
+import com.svenruppert.publications.model.AcquisitionStatus;
+import com.svenruppert.publications.model.EditorialState;
 import com.svenruppert.publications.model.Issue;
-import com.svenruppert.publications.model.Publikationsort;
-import com.svenruppert.publications.model.Sprache;
-import com.svenruppert.publications.model.Sprachfassung;
+import com.svenruppert.publications.model.Language;
+import com.svenruppert.publications.model.LanguageVersion;
+import com.svenruppert.publications.model.Part;
+import com.svenruppert.publications.model.ProductionStatus;
+import com.svenruppert.publications.model.Publication;
+import com.svenruppert.publications.model.PublicationPlace;
 import com.svenruppert.publications.model.Tag;
-import com.svenruppert.publications.model.Teil;
-import com.svenruppert.publications.model.Veroeffentlichung;
-import com.svenruppert.publications.model.Veroeffentlichungsstatus;
-import com.svenruppert.publications.model.Vertriebsstatus;
 import com.svenruppert.publications.persistence.EclipseStorePublicationsPersistence;
 import com.svenruppert.publications.persistence.PublicationsRepository;
 import org.junit.jupiter.api.Test;
@@ -37,59 +37,59 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * No-Mocks-Round-Trip gegen eine echte Eclipse-Store-Instanz in einem
- * Temp-Verzeichnis: schreiben, schließen, in einer frischen Instanz wieder
- * öffnen und den kompletten Graph inklusive der Statushistorien prüfen.
+ * No-mocks round-trip against a real Eclipse-Store instance in a temp directory:
+ * write, close, reopen in a fresh instance and check the whole graph including the
+ * status histories.
  */
 class EclipseStorePublicationsPersistenceTest {
 
   @Test
-  void graphUeberlebtNeustart(@TempDir Path tmp) {
+  void graphSurvivesRestart(@TempDir Path tmp) {
     Path dir = tmp.resolve("publications");
 
     var p1 = new EclipseStorePublicationsPersistence(dir);
     var repo1 = new PublicationsRepository(p1);
-    Publikationsort ort =
-        repo1.neuerPublikationsort("svenruppert.com", Set.of(Sprache.DEUTSCH, Sprache.ENGLISCH));
-    Issue issue = repo1.neuesIssue("Blog – Navigation – Koppelnavigation");
-    issue.setHerkunft("CU-8842");
+    PublicationPlace place =
+        repo1.createPublicationPlace("svenruppert.com", Set.of(Language.GERMAN, Language.ENGLISH));
+    Issue issue = repo1.createIssue("Blog – Navigation – Coupled navigation");
+    issue.setOrigin("CU-8842");
     issue.addTag(new Tag("Vaadin"));
-    Teil teil = issue.addTeil();
-    teil.wechsleZustand(Arbeitszustand.IN_PLANUNG, "Sven");
-    teil.wechsleZustand(Arbeitszustand.IN_PROGRESS, "Redaktion");
-    Sprachfassung de = teil.addSprachfassung(Sprache.DEUTSCH);
-    de.setManuskript("docs.google.com/…/koppelnav-de");
-    de.setGeplanteZeichen(9000);
-    Veroeffentlichung v = de.planeVeroeffentlichung(ort);
-    v.wechsleStatus(Veroeffentlichungsstatus.PREPARED, "Sven");
-    v.wechsleVertrieb(Vertriebsstatus.ACCEPTED, "Sven");
+    Part part = issue.addPart();
+    part.changeState(EditorialState.IN_PLANNING, "Sven");
+    part.changeState(EditorialState.IN_PROGRESS, "Editorial");
+    LanguageVersion de = part.addLanguageVersion(Language.GERMAN);
+    de.setManuscript("docs.google.com/…/coupled-nav-de");
+    de.setPlannedCharacters(9000);
+    Publication v = de.planPublication(place);
+    v.changeProductionStatus(ProductionStatus.PREPARED, "Sven");
+    v.changeAcquisitionStatus(AcquisitionStatus.ACCEPTED, "Sven");
     repo1.persist();
     p1.close();
 
-    // frische Instanz, gleiches Verzeichnis
+    // fresh instance, same directory
     var p2 = new EclipseStorePublicationsPersistence(dir);
     var repo2 = new PublicationsRepository(p2);
     try {
       assertEquals(1, repo2.issues().size());
       Issue loaded = repo2.issues().get(0);
-      assertEquals("Blog – Navigation – Koppelnavigation", loaded.titel());
-      assertEquals("CU-8842", loaded.herkunft());
+      assertEquals("Blog – Navigation – Coupled navigation", loaded.title());
+      assertEquals("CU-8842", loaded.origin());
       assertEquals(Set.of(new Tag("Vaadin")), loaded.tags());
 
-      assertEquals(1, loaded.teile().size());
-      Teil lt = loaded.teile().get(0);
-      assertEquals(Arbeitszustand.IN_PROGRESS, lt.arbeitszustand());
-      assertEquals(2, lt.arbeit().anzahl(), "die Statushistorie muss den Neustart überleben");
+      assertEquals(1, loaded.parts().size());
+      Part lp = loaded.parts().get(0);
+      assertEquals(EditorialState.IN_PROGRESS, lp.editorialState());
+      assertEquals(2, lp.editorialWork().count(), "the status history must survive the restart");
 
-      Sprachfassung lf = lt.fassung(Sprache.DEUTSCH).orElseThrow();
-      assertEquals(9000, lf.geplanteZeichen());
+      LanguageVersion lv = lp.versionFor(Language.GERMAN).orElseThrow();
+      assertEquals(9000, lv.plannedCharacters());
 
-      Veroeffentlichung lv = lf.veroeffentlichungen().get(0);
-      assertEquals(Veroeffentlichungsstatus.PREPARED, lv.herstellungsstatus());
-      assertEquals(Vertriebsstatus.ACCEPTED, lv.akquisestatus());
-      assertEquals(ort.id(), lv.ort().id());
+      Publication lpub = lv.publications().get(0);
+      assertEquals(ProductionStatus.PREPARED, lpub.productionStatus());
+      assertEquals(AcquisitionStatus.ACCEPTED, lpub.acquisitionStatus());
+      assertEquals(place.id(), lpub.place().id());
 
-      assertEquals(1, repo2.publikationsorte().size());
+      assertEquals(1, repo2.publicationPlaces().size());
     } finally {
       p2.close();
     }

@@ -16,8 +16,8 @@
 
 package junit.com.svenruppert.publications.model;
 
-import com.svenruppert.publications.model.Arbeitszustand;
-import com.svenruppert.publications.model.Statuswechsel;
+import com.svenruppert.publications.model.EditorialState;
+import com.svenruppert.publications.model.StatusChange;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -26,39 +26,39 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-class StatuswechselTest {
+class StatusChangeTest {
 
   private static final Instant T = Instant.parse("2026-05-23T09:00:00Z");
 
   @Test
-  void gueltigesEreignisWirdAkzeptiert() {
-    var w = new Statuswechsel<>(0L, Arbeitszustand.BACKLOG, Arbeitszustand.IN_PLANUNG, "Sven", T);
-    assertEquals(0L, w.folge());
-    assertEquals(Arbeitszustand.BACKLOG, w.von());
-    assertEquals(Arbeitszustand.IN_PLANUNG, w.nach());
-    assertEquals("Sven", w.akteur());
-    assertEquals(T, w.zeitpunkt());
+  void validEventIsAccepted() {
+    var c = new StatusChange<>(0L, EditorialState.BACKLOG, EditorialState.IN_PLANNING, "Sven", T);
+    assertEquals(0L, c.sequence());
+    assertEquals(EditorialState.BACKLOG, c.from());
+    assertEquals(EditorialState.IN_PLANNING, c.to());
+    assertEquals("Sven", c.actor());
+    assertEquals(T, c.timestamp());
   }
 
   @Test
-  void negativeFolgeWirdAbgelehnt() {
+  void negativeSequenceIsRejected() {
     assertThrows(IllegalArgumentException.class,
-        () -> new Statuswechsel<>(-1L, Arbeitszustand.BACKLOG, Arbeitszustand.DONE, "x", T));
+        () -> new StatusChange<>(-1L, EditorialState.BACKLOG, EditorialState.DONE, "x", T));
   }
 
   @Test
-  void nullFelderWerdenAbgelehnt() {
+  void nullFieldsAreRejected() {
     assertThrows(NullPointerException.class,
-        () -> new Statuswechsel<>(0L, null, Arbeitszustand.DONE, "x", T));
+        () -> new StatusChange<>(0L, null, EditorialState.DONE, "x", T));
     assertThrows(NullPointerException.class,
-        () -> new Statuswechsel<>(0L, Arbeitszustand.BACKLOG, null, "x", T));
+        () -> new StatusChange<>(0L, EditorialState.BACKLOG, null, "x", T));
     assertThrows(NullPointerException.class,
-        () -> new Statuswechsel<>(0L, Arbeitszustand.BACKLOG, Arbeitszustand.DONE, "x", null));
+        () -> new StatusChange<>(0L, EditorialState.BACKLOG, EditorialState.DONE, "x", null));
   }
 
   @Test
-  void akteurDarfNullSein() {
+  void actorMayBeNull() {
     assertDoesNotThrow(
-        () -> new Statuswechsel<>(0L, Arbeitszustand.BACKLOG, Arbeitszustand.DONE, null, T));
+        () -> new StatusChange<>(0L, EditorialState.BACKLOG, EditorialState.DONE, null, T));
   }
 }

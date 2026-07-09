@@ -16,24 +16,23 @@
 
 package com.svenruppert.flow.views.publications;
 
-import com.svenruppert.publications.model.Arbeitszustand;
-import com.svenruppert.publications.model.Veroeffentlichungsstatus;
-import com.svenruppert.publications.model.Vertriebsstatus;
+import com.svenruppert.publications.model.AcquisitionStatus;
+import com.svenruppert.publications.model.EditorialState;
+import com.svenruppert.publications.model.ProductionStatus;
 import com.vaadin.flow.component.html.Span;
 
 /**
- * Kleine Sammlung wiederverwendbarer Lumo-Badges für die
- * Publikationsverwaltungs-Views. Bildet die Statuswerte der drei Dimensionen
- * auf die Lumo-Badge-Theme-Varianten ab (success/error/contrast), damit alle
- * Views (Themen-Arbeitsplatz, Redaktionstafel, Veröffentlichungssicht,
- * Verlauf) dieselbe Farbsprache verwenden.
+ * A small collection of reusable Lumo badges for the publications views. Maps the
+ * status values of the three dimensions onto the Lumo badge theme variants
+ * (success/error/contrast), so all views (topics workspace, editorial board,
+ * publication view, history) share the same color language.
  */
 public final class PublicationUi {
 
   private PublicationUi() {
   }
 
-  /** Ein Lumo-Badge mit optionaler Farbvariante ({@code "success"} …). */
+  /** A Lumo badge with an optional color variant ({@code "success"} …). */
   public static Span badge(String text, String variant) {
     Span span = new Span(text);
     span.getElement().getThemeList().add("badge");
@@ -44,21 +43,21 @@ public final class PublicationUi {
     return span;
   }
 
-  /** Neutrales Tag-Badge. */
+  /** Neutral tag badge. */
   public static Span tag(String name) {
     return badge(name, "contrast");
   }
 
-  public static Span arbeitszustand(Arbeitszustand zustand) {
-    return badge(zustand.name(), switch (zustand) {
+  public static Span editorialState(EditorialState state) {
+    return badge(state.name(), switch (state) {
       case DONE -> "success";
       case CANCELLED -> "error";
-      case IN_PROGRESS, IN_PLANUNG, REVIEW -> "contrast";
+      case IN_PROGRESS, IN_PLANNING, REVIEW -> "contrast";
       case BACKLOG, SKIPPED -> "";
     });
   }
 
-  public static Span herstellung(Veroeffentlichungsstatus status) {
+  public static Span production(ProductionStatus status) {
     return badge(status.name(), switch (status) {
       case PUBLISHED -> "success";
       case UPDATE_NEEDED -> "error";
@@ -66,7 +65,7 @@ public final class PublicationUi {
     });
   }
 
-  public static Span vertrieb(Vertriebsstatus status) {
+  public static Span acquisition(AcquisitionStatus status) {
     return badge(status.name(), switch (status) {
       case DONE, ACCEPTED -> "success";
       case CANCELLED -> "error";

@@ -16,23 +16,22 @@
 
 package com.svenruppert.publications.persistence;
 
-import com.svenruppert.publications.model.Datenwurzel;
+import com.svenruppert.publications.model.DataRoot;
 
 /**
- * Speicher-Abstraktion für den {@link Datenwurzel}-Objektgraph der
- * Publikationsverwaltung. Spiegelt das Muster von
- * {@code UserDirectoryPersistence}: eine In-Memory-Variante als Test-Seam und
- * eine Eclipse-Store-Variante für die Produktion.
+ * Storage abstraction for the {@link DataRoot} object graph of the publications
+ * domain. Mirrors the {@code UserDirectoryPersistence} pattern: an in-memory
+ * variant as a test seam and an Eclipse-Store variant for production.
  */
 public interface PublicationsPersistence {
 
-  /** Lädt die Datenwurzel; liefert beim ersten Start eine leere Wurzel. */
-  Datenwurzel load();
+  /** Loads the data root; returns an empty root on first start. */
+  DataRoot load();
 
-  /** Persistiert den Zustand der (in place mutierten) Datenwurzel. */
-  void save(Datenwurzel wurzel);
+  /** Persists the state of the (in-place mutated) data root. */
+  void save(DataRoot root);
 
-  /** Gibt Ressourcen frei (idempotent). In-Memory-Varianten machen nichts. */
+  /** Releases resources (idempotent). In-memory variants do nothing. */
   default void close() {
   }
 }

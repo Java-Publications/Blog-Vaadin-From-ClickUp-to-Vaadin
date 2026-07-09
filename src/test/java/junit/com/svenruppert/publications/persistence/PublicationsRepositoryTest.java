@@ -17,8 +17,8 @@
 package junit.com.svenruppert.publications.persistence;
 
 import com.svenruppert.publications.model.Issue;
-import com.svenruppert.publications.model.Publikationsort;
-import com.svenruppert.publications.model.Sprache;
+import com.svenruppert.publications.model.Language;
+import com.svenruppert.publications.model.PublicationPlace;
 import com.svenruppert.publications.persistence.InMemoryPublicationsPersistence;
 import com.svenruppert.publications.persistence.PublicationsRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,54 +41,54 @@ class PublicationsRepositoryTest {
   }
 
   @Test
-  void neuesIssueUndFund() {
-    Issue issue = repo.neuesIssue("Blog – Navigation – Koppelnavigation");
+  void createIssueAndFind() {
+    Issue issue = repo.createIssue("Blog – Navigation – Coupled navigation");
     assertEquals(1, repo.issues().size());
     assertTrue(repo.findIssue(issue.id()).isPresent());
     assertEquals(issue, repo.findIssue(issue.id()).orElseThrow());
   }
 
   @Test
-  void findIssueByHerkunft() {
-    Issue issue = repo.neuesIssue("Thema");
-    issue.setHerkunft("CU-8842");
+  void findIssueByOrigin() {
+    Issue issue = repo.createIssue("Topic");
+    issue.setOrigin("CU-8842");
     repo.persist();
-    assertTrue(repo.findIssueByHerkunft("CU-8842").isPresent());
-    assertFalse(repo.findIssueByHerkunft("CU-0000").isPresent());
-    assertFalse(repo.findIssueByHerkunft(null).isPresent());
+    assertTrue(repo.findIssueByOrigin("CU-8842").isPresent());
+    assertFalse(repo.findIssueByOrigin("CU-0000").isPresent());
+    assertFalse(repo.findIssueByOrigin(null).isPresent());
   }
 
   @Test
-  void orteFuerSpracheFiltertNachSprachregel() {
-    repo.neuerPublikationsort("svenruppert.com", Set.of(Sprache.DEUTSCH, Sprache.ENGLISCH));
-    repo.neuerPublikationsort("DZone", Set.of(Sprache.ENGLISCH));
-    List<Publikationsort> de = repo.orteFuer(Sprache.DEUTSCH);
+  void placesForLanguageFiltersByLanguageRule() {
+    repo.createPublicationPlace("svenruppert.com", Set.of(Language.GERMAN, Language.ENGLISH));
+    repo.createPublicationPlace("DZone", Set.of(Language.ENGLISH));
+    List<PublicationPlace> de = repo.placesFor(Language.GERMAN);
     assertEquals(1, de.size());
     assertEquals("svenruppert.com", de.get(0).name());
-    assertEquals(2, repo.orteFuer(Sprache.ENGLISCH).size());
+    assertEquals(2, repo.placesFor(Language.ENGLISH).size());
   }
 
   @Test
-  void loescheIssueEntfernt() {
-    Issue a = repo.neuesIssue("A");
-    repo.neuesIssue("B");
-    repo.loescheIssue(a);
+  void deleteIssueRemoves() {
+    Issue a = repo.createIssue("A");
+    repo.createIssue("B");
+    repo.deleteIssue(a);
     assertEquals(1, repo.issues().size());
     assertFalse(repo.findIssue(a.id()).isPresent());
   }
 
   @Test
-  void findTeilUndVeroeffentlichungUeberDenGraphen() {
-    var ort = repo.neuerPublikationsort("svenruppert.com", Set.of(Sprache.DEUTSCH));
-    Issue issue = repo.neuesIssue("Thema");
-    var teil = issue.addTeil();
-    var fassung = teil.addSprachfassung(Sprache.DEUTSCH);
-    var v = fassung.planeVeroeffentlichung(ort);
+  void findPartAndPublicationAcrossTheGraph() {
+    var place = repo.createPublicationPlace("svenruppert.com", Set.of(Language.GERMAN));
+    Issue issue = repo.createIssue("Topic");
+    var part = issue.addPart();
+    var version = part.addLanguageVersion(Language.GERMAN);
+    var v = version.planPublication(place);
     repo.persist();
 
-    assertTrue(repo.findTeil(teil.id()).isPresent());
-    assertTrue(repo.findFassung(fassung.id()).isPresent());
-    assertTrue(repo.findVeroeffentlichung(v.id()).isPresent());
-    assertEquals(1, repo.alleVeroeffentlichungen().size());
+    assertTrue(repo.findPart(part.id()).isPresent());
+    assertTrue(repo.findVersion(version.id()).isPresent());
+    assertTrue(repo.findPublication(v.id()).isPresent());
+    assertEquals(1, repo.allPublications().size());
   }
 }

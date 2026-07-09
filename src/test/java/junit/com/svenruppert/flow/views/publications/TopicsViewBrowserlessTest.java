@@ -18,18 +18,18 @@ package junit.com.svenruppert.flow.views.publications;
 
 import com.svenruppert.flow.security.model.AppUser;
 import com.svenruppert.flow.security.roles.AuthorizationRole;
-import com.svenruppert.flow.views.publications.RedaktionstafelView;
+import com.svenruppert.flow.views.publications.TopicsView;
 import com.svenruppert.jsentinel.authorization.api.SubjectStores;
-import com.svenruppert.publications.model.Arbeitszustand;
 import com.svenruppert.publications.model.Issue;
-import com.svenruppert.publications.model.Teil;
+import com.svenruppert.publications.model.Tag;
 import com.svenruppert.publications.persistence.InMemoryPublicationsPersistence;
 import com.svenruppert.publications.persistence.PublicationsProvider;
 import com.svenruppert.publications.persistence.PublicationsRepository;
 import com.vaadin.browserless.BrowserlessTest;
 import com.vaadin.flow.component.UI;
-import com.vaadin.flow.component.html.H1;
-import com.vaadin.flow.component.select.Select;
+import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.html.H3;
 import junit.com.svenruppert.flow.TestSupport;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,11 +38,13 @@ import org.junit.jupiter.api.Test;
 
 import java.util.EnumSet;
 import java.util.Locale;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@DisplayName("RedaktionstafelView (V3) — columns per state")
-class RedaktionstafelViewBrowserlessTest extends BrowserlessTest {
+@DisplayName("TopicsView (V1) — master issue grid + detail")
+class TopicsViewBrowserlessTest extends BrowserlessTest {
 
   @BeforeEach
   void setUp() {
@@ -53,10 +55,10 @@ class RedaktionstafelViewBrowserlessTest extends BrowserlessTest {
     }
     PublicationsRepository repo =
         new PublicationsRepository(new InMemoryPublicationsPersistence());
-    Issue issue = repo.neuesIssue("Blog – Navigation – Koppelnavigation");
-    issue.addTeil();
-    Teil t2 = issue.addTeil();
-    t2.wechsleZustand(Arbeitszustand.IN_PROGRESS, "Sven");
+    repo.createIssue("Blog – Navigation – Coupled navigation");
+    Issue testing = repo.createIssue("Blog – Testing – JUnit 5 Extensions");
+    testing.addTag(new Tag("JUnit"));
+    testing.addPart();
     repo.persist();
     PublicationsProvider.setRepository(repo);
 
@@ -72,12 +74,36 @@ class RedaktionstafelViewBrowserlessTest extends BrowserlessTest {
   }
 
   @Test
-  @DisplayName("NAV is 'redaktion' and each part gets a move-select card")
-  void boardRendersCards() {
-    assertEquals("redaktion", RedaktionstafelView.NAV);
-    UI.getCurrent().navigate(RedaktionstafelView.class);
-    assertEquals("Editorial board", $view(H1.class).first().getText());
-    assertEquals(2, $view(Select.class).all().size(),
-        "one move-Select per part card (two seeded parts)");
+  @DisplayName("NAV constant is 'themen'")
+  void navConstant() {
+    assertEquals("themen", TopicsView.NAV);
+  }
+
+  @Test
+  @DisplayName("heading is rendered")
+  void headingPresent() {
+    UI.getCurrent().navigate(TopicsView.class);
+    H3 empty = $view(H3.class).first();
+    assertEquals("No topic selected", empty.getText());
+  }
+
+  @Test
+  @DisplayName("master grid lists both seeded issues")
+  void masterGridListsIssues() {
+    UI.getCurrent().navigate(TopicsView.class);
+    Grid<?> grid = $view(Grid.class).first();
+    assertEquals(3, grid.getColumns().size(), "title, parts, status columns");
+    assertEquals(2, grid.getListDataView().getItemCount());
+  }
+
+  @Test
+  @DisplayName("toolbar has a '+ Topic' button")
+  void createTopicButtonPresent() {
+    UI.getCurrent().navigate(TopicsView.class);
+    assertTrue($view(Button.class).all().stream()
+            .map(Button::getText)
+            .collect(Collectors.toList())
+            .contains("+ Topic"),
+        "the header must offer a '+ Topic' action");
   }
 }

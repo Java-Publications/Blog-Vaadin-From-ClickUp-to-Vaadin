@@ -22,8 +22,8 @@ import com.svenruppert.flow.security.roles.VisibleFor;
 import com.svenruppert.flow.views.MainLayout;
 import com.svenruppert.flow.views.ui.FilterBar;
 import com.svenruppert.flow.views.ui.PageHeader;
-import com.svenruppert.publications.model.Veroeffentlichung;
-import com.svenruppert.publications.model.Veroeffentlichungsstatus;
+import com.svenruppert.publications.model.Publication;
+import com.svenruppert.publications.model.ProductionStatus;
 import com.svenruppert.publications.persistence.PublicationsProvider;
 import com.svenruppert.publications.persistence.PublicationsRepository;
 import com.vaadin.flow.component.Composite;
@@ -38,28 +38,28 @@ import com.vaadin.flow.router.Route;
 import java.util.List;
 
 /**
- * Übersicht aller {@link Veroeffentlichung}en (Einstieg aus dem Drawer) mit
- * einem Filter über den Herstellungsstatus; „Öffnen" führt in die
- * zweispaltige {@link VeroeffentlichungView} (V4).
+ * Overview of all {@link Publication}s (drawer entry point) with a filter over
+ * the production status; "Open" leads into the two-column {@link PublicationView}
+ * (V4).
  */
-@Route(value = VeroeffentlichungslisteView.NAV, layout = MainLayout.class)
+@Route(value = PublicationListView.NAV, layout = MainLayout.class)
 @VisibleFor(AuthorizationRole.USER)
-public class VeroeffentlichungslisteView extends Composite<VerticalLayout>
+public class PublicationListView extends Composite<VerticalLayout>
     implements I18nSupport {
 
   public static final String NAV = "veroeffentlichungen";
 
   private final transient PublicationsRepository repo = PublicationsProvider.repository();
-  private final Grid<Veroeffentlichung> grid = new Grid<>(Veroeffentlichung.class, false);
+  private final Grid<Publication> grid = new Grid<>(Publication.class, false);
   private final FilterBar filterBar = new FilterBar();
-  private final ComboBox<Veroeffentlichungsstatus> statusFilter;
+  private final ComboBox<ProductionStatus> statusFilter;
 
   {
     statusFilter = filterBar.addSingleSelect(tr("liste.filter.status", "Production"),
-        Veroeffentlichungsstatus.values(), tr("liste.filter.status.ph", "Any status"));
+        ProductionStatus.values(), tr("liste.filter.status.ph", "Any status"));
   }
 
-  public VeroeffentlichungslisteView() {
+  public PublicationListView() {
     VerticalLayout root = getContent();
     root.setSizeFull();
     root.getStyle().set("gap", "var(--lumo-space-m)");
@@ -72,17 +72,17 @@ public class VeroeffentlichungslisteView extends Composite<VerticalLayout>
     filterBar.onClear(this::refresh);
     root.add(filterBar);
 
-    grid.addColumn(v -> v.fassung().sprache().name()).setHeader(tr("liste.col.lang", "Language")).setAutoWidth(true);
-    grid.addColumn(v -> v.ort().name()).setHeader(tr("liste.col.place", "Place")).setFlexGrow(1);
-    grid.addComponentColumn(v -> PublicationUi.vertrieb(v.akquisestatus()))
+    grid.addColumn(v -> v.version().language().name()).setHeader(tr("liste.col.lang", "Language")).setAutoWidth(true);
+    grid.addColumn(v -> v.place().name()).setHeader(tr("liste.col.place", "Place")).setFlexGrow(1);
+    grid.addComponentColumn(v -> PublicationUi.acquisition(v.acquisitionStatus()))
         .setHeader(tr("liste.col.acquisition", "Acquisition")).setAutoWidth(true);
-    grid.addComponentColumn(v -> PublicationUi.herstellung(v.herstellungsstatus()))
+    grid.addComponentColumn(v -> PublicationUi.production(v.productionStatus()))
         .setHeader(tr("liste.col.production", "Production")).setAutoWidth(true);
-    grid.addColumn(v -> v.datum() == null ? "" : v.datum().toString())
+    grid.addColumn(v -> v.date() == null ? "" : v.date().toString())
         .setHeader(tr("liste.col.date", "Date")).setAutoWidth(true);
     grid.addComponentColumn(v -> {
       Button open = new Button(tr("liste.open", "Open"),
-          e -> UI.getCurrent().navigate(VeroeffentlichungView.NAV + "/" + v.id()));
+          e -> UI.getCurrent().navigate(PublicationView.NAV + "/" + v.id()));
       open.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
       return open;
     }).setAutoWidth(true);
@@ -94,9 +94,9 @@ public class VeroeffentlichungslisteView extends Composite<VerticalLayout>
   }
 
   private void refresh() {
-    Veroeffentlichungsstatus wanted = statusFilter.getValue();
-    List<Veroeffentlichung> items = repo.alleVeroeffentlichungen().stream()
-        .filter(v -> wanted == null || v.herstellungsstatus() == wanted)
+    ProductionStatus wanted = statusFilter.getValue();
+    List<Publication> items = repo.allPublications().stream()
+        .filter(v -> wanted == null || v.productionStatus() == wanted)
         .toList();
     grid.setItems(items);
     filterBar.setCount(items.size(), tr("liste.unit", "publications"));

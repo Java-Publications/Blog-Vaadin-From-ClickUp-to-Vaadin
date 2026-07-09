@@ -102,16 +102,16 @@ public class DashboardView extends Composite<VerticalLayout>
   private FlexLayout buildPublicationsRow() {
     var repo = com.svenruppert.publications.persistence.PublicationsProvider.repository();
     long issues = safeCount(() -> (long) repo.issues().size());
-    long teile = safeCount(() -> repo.issues().stream()
-        .mapToLong(i -> i.teile().size()).sum());
-    long pubs = safeCount(() -> (long) repo.alleVeroeffentlichungen().size());
+    long parts = safeCount(() -> repo.issues().stream()
+        .mapToLong(i -> i.parts().size()).sum());
+    long pubs = safeCount(() -> (long) repo.allPublications().size());
 
     FlexLayout row = new FlexLayout(
         new MetricTile(VaadinIcon.GLOBE,
             tr("dashboard.pub.issues", "Topics"), String.valueOf(issues),
             tr("dashboard.pub.issues.hint", "Issues in the backlog")),
         new MetricTile(VaadinIcon.FILE_TEXT_O,
-            tr("dashboard.pub.parts", "Parts"), String.valueOf(teile),
+            tr("dashboard.pub.parts", "Parts"), String.valueOf(parts),
             tr("dashboard.pub.parts.hint", "Across all topics")),
         new MetricTile(VaadinIcon.NEWSPAPER,
             tr("dashboard.pub.pubs", "Publications"), String.valueOf(pubs),

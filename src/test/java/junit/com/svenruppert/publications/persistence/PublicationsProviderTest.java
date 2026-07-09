@@ -32,21 +32,21 @@ class PublicationsProviderTest {
   }
 
   @Test
-  void overrideWirdZurueckgegeben() {
+  void overrideIsReturned() {
     var repo = new PublicationsRepository(new InMemoryPublicationsPersistence());
     PublicationsProvider.setRepository(repo);
     assertSame(repo, PublicationsProvider.repository());
   }
 
   @Test
-  void resetErlaubtEinNeuesOverride() {
+  void resetAllowsANewOverride() {
     var a = new PublicationsRepository(new InMemoryPublicationsPersistence());
     PublicationsProvider.setRepository(a);
     assertSame(a, PublicationsProvider.repository());
 
     PublicationsProvider.reset();
 
-    // ohne den Lazy-Holder (echter Store) auszulösen: ein neues Override greift
+    // without triggering the lazy holder (real store): a new override takes effect
     var b = new PublicationsRepository(new InMemoryPublicationsPersistence());
     PublicationsProvider.setRepository(b);
     assertSame(b, PublicationsProvider.repository());

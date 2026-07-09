@@ -70,6 +70,13 @@ class EditorialBoardViewBrowserlessTest extends BrowserlessTest {
     SubjectStores.subjectStore().setCurrentSubject(
         new AppUser(1L, "Alice", EnumSet.of(AuthorizationRole.ADMIN, AuthorizationRole.USER)),
         AppUser.class);
+
+    // The board honours the session-scoped global filter (F6); keep it empty so
+    // the seeded issue is visible regardless of test order.
+    com.svenruppert.flow.views.publications.PublicationsFilter f =
+        com.svenruppert.flow.views.publications.PublicationsFilter.current();
+    f.setTitleQuery("");
+    f.setState(null);
   }
 
   @AfterEach

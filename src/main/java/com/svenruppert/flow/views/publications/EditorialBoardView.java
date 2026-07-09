@@ -80,7 +80,10 @@ public class EditorialBoardView extends Composite<VerticalLayout> implements I18
 
   private void refresh() {
     board.removeAll();
+    // Honour the global navbar search (F6): only parts of matching issues.
+    PublicationsFilter filter = PublicationsFilter.current();
     List<Part> all = repo.issues().stream()
+        .filter(filter::matchesTitle)
         .flatMap(i -> i.parts().stream())
         .toList();
     for (EditorialState state : EditorialState.values()) {

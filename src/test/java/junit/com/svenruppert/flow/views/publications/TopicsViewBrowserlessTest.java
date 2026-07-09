@@ -68,12 +68,21 @@ class TopicsViewBrowserlessTest extends BrowserlessTest {
     SubjectStores.subjectStore().setCurrentSubject(
         new AppUser(1L, "Alice", EnumSet.of(AuthorizationRole.ADMIN, AuthorizationRole.USER)),
         AppUser.class);
+
+    // Start every test with an empty global filter (it lives in the session and
+    // would otherwise leak the "Testing" query into sibling tests).
+    com.svenruppert.flow.views.publications.PublicationsFilter session =
+        com.svenruppert.flow.views.publications.PublicationsFilter.current();
+    session.setTitleQuery("");
+    session.setState(null);
   }
 
   @AfterEach
   void tearDown() {
     PublicationsProvider.reset();
     SubjectStores.subjectStore().deleteCurrentSubject(AppUser.class);
+    com.svenruppert.flow.views.publications.PublicationsFilter.current().setTitleQuery("");
+    com.svenruppert.flow.views.publications.PublicationsFilter.current().setState(null);
   }
 
   @Test
@@ -117,6 +126,20 @@ class TopicsViewBrowserlessTest extends BrowserlessTest {
     UI.getCurrent().navigate(TopicsView.class);
     assertEquals("Kein Thema gewählt", $view(com.vaadin.flow.component.html.H3.class).first().getText(),
         "the DE translation bundle must resolve, not fall back to English");
+  }
+
+  @Test
+  @DisplayName("the master grid honours the session-scoped global title filter (F6)")
+  @SuppressWarnings("unchecked")
+  void masterGridHonoursSessionFilter() {
+    // The navbar search writes the session filter; TopicsView reads it on render.
+    com.svenruppert.flow.views.publications.PublicationsFilter.current().setTitleQuery("Testing");
+    UI.getCurrent().navigate(TopicsView.class);
+    Grid<Issue> grid = (Grid<Issue>) $view(Grid.class).first();
+    assertEquals(1, grid.getListDataView().getItemCount(),
+        "only the 'Testing' topic must survive the global title filter");
+    assertEquals("Blog – Testing – JUnit 5 Extensions",
+        grid.getListDataView().getItems().findFirst().orElseThrow().title());
   }
 
   @Test

@@ -101,9 +101,15 @@ public class TopicsView extends Composite<VerticalLayout> implements I18nSupport
         tr("themen.subtitle", "Issues, their parts and tags — the entry into the backlog."))
         .withActions(primary(tr("themen.new", "+ Topic"), e -> openCreateIssueDialog())));
 
-    searchField.addValueChangeListener(e -> refreshMaster());
+    searchField.addValueChangeListener(e -> {
+      PublicationsFilter.current().setTitleQuery(e.getValue());
+      refreshMaster();
+    });
     tagFilter.addValueChangeListener(e -> refreshMaster());
     filterBar.onClear(this::refreshMaster);
+    // Adopt the session-scoped global filter (set by the navbar search, F6) as
+    // the initial title query so the filter survives navigation between views.
+    searchField.setValue(PublicationsFilter.current().titleQuery());
 
     grid.addColumn(Issue::title).setHeader(tr("themen.col.title", "Title")).setFlexGrow(1);
     grid.addColumn(i -> i.parts().size()).setHeader(tr("themen.col.parts", "Parts")).setAutoWidth(true);
@@ -133,11 +139,15 @@ public class TopicsView extends Composite<VerticalLayout> implements I18nSupport
   // ── master ───────────────────────────────────────────────────────────────
 
   private void refreshMaster() {
+    PublicationsFilter session = PublicationsFilter.current();
     String needle = searchField.getValue() == null ? "" : searchField.getValue().strip().toLowerCase();
     Set<Tag> wanted = tagFilter.getValue();
     List<Issue> issues = repo.issues().stream()
         .filter(i -> needle.isEmpty() || i.title().toLowerCase().contains(needle))
         .filter(i -> wanted.isEmpty() || i.tags().stream().anyMatch(wanted::contains))
+        // Global editorial-state filter from the navbar (F6); title is already
+        // covered by the local search field seeded from the same holder.
+        .filter(session::matchesState)
         .sorted((a, b) -> a.title().compareToIgnoreCase(b.title()))
         .toList();
     grid.setItems(issues);

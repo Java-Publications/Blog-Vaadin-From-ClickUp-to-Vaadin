@@ -24,9 +24,11 @@ import com.vaadin.browserless.BrowserlessTest;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.sidenav.SideNav;
 import com.vaadin.flow.component.sidenav.SideNavItem;
+import com.vaadin.flow.component.textfield.TextField;
 import junit.com.svenruppert.flow.TestSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -119,6 +121,32 @@ class MainLayoutBrowserlessTest extends BrowserlessTest {
 
     assertEquals("Sign out", authButtonText(layout),
         "beforeEnter must rebuild the auth slot to reflect the new subject");
+  }
+
+  @Test
+  @DisplayName("anonymous → no global publications search in the navbar")
+  void anonymousHasNoGlobalSearch() throws Exception {
+    MainLayout layout = new MainLayout();
+    Div slot = privateDiv(layout, "filterSlot");
+    assertTrue(allDescendants(slot).noneMatch(TextField.class::isInstance),
+        "anonymous visitor must not see the publications search field");
+  }
+
+  @Test
+  @DisplayName("authenticated USER → global search field + state filter in the navbar")
+  void userSeesGlobalSearchAndStateFilter() throws Exception {
+    SubjectStores.subjectStore().setCurrentSubject(
+        new AppUser(14L, "Bob", EnumSet.of(AuthorizationRole.USER)), AppUser.class);
+
+    MainLayout layout = new MainLayout();
+    Div slot = privateDiv(layout, "filterSlot");
+
+    TextField search = allDescendants(slot)
+        .filter(TextField.class::isInstance).map(TextField.class::cast)
+        .findFirst().orElseThrow(() -> new AssertionError("no global search field"));
+    assertEquals("global-search", search.getId().orElse(null));
+    assertTrue(allDescendants(slot).anyMatch(ComboBox.class::isInstance),
+        "the editorial-state filter combo must be present too");
   }
 
   // ── helpers — reflection on the private Div slot fields ────────

@@ -20,9 +20,12 @@ import com.svenruppert.dependencies.core.logger.HasLogger;
 import com.svenruppert.flow.i18n.I18nSupport;
 import com.svenruppert.flow.security.model.AppUser;
 import com.svenruppert.flow.views.main.PushDemoView;
+import com.svenruppert.flow.views.publications.PublicationsFilter;
+import com.svenruppert.flow.views.publications.TopicsView;
 import com.svenruppert.flow.views.ui.BrandMark;
 import com.svenruppert.flow.views.ui.LocaleSwitcher;
 import com.svenruppert.flow.views.ui.ThemeSwitcher;
+import com.svenruppert.publications.model.EditorialState;
 import com.svenruppert.jsentinel.authorization.api.AuthorizationService;
 import com.svenruppert.jsentinel.authorization.api.JSentinelServiceResolver;
 import com.svenruppert.jsentinel.authorization.api.SubjectStores;
@@ -37,10 +40,13 @@ import com.vaadin.flow.component.applayout.AppLayout;
 import com.vaadin.flow.component.applayout.DrawerToggle;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.sidenav.SideNav;
 import com.vaadin.flow.component.sidenav.SideNavItem;
+import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 
@@ -90,6 +96,10 @@ public class MainLayout extends AppLayout
   private static final String K_NAV_IMPORT = "nav.import";
   private static final String K_SIGN_IN = "common.signIn";
   private static final String K_SIGN_OUT = "common.signOut";
+  // Global publications filter (F6)
+  private static final String K_NAV_SEARCH_PH = "nav.search.ph";
+  private static final String K_NAV_FILTER_STATE_PH = "nav.filter.state.ph";
+  private static final String PERM_PUBLICATIONS_READ = "publications:read";
 
   private static final LogoutService LOGOUT_SERVICE =
       new VaadinLogoutService<>(
@@ -101,18 +111,21 @@ public class MainLayout extends AppLayout
 
   private final Div authActionSlot = new Div();
   private final Div drawerSlot = new Div();
+  private final Div filterSlot = new Div();
 
   public MainLayout() {
     BrandMark brand = new BrandMark();
 
     authActionSlot.add(buildAuthActionButton());
     drawerSlot.add(buildDrawer());
+    filterSlot.add(buildPublicationsFilter());
 
     DrawerToggle toggle = new DrawerToggle();
     toggle.setAriaLabel("Toggle navigation");
     addToNavbar(toggle, brand);
 
     Div navbarTail = new Div(
+        filterSlot,
         new ThemeSwitcher(),
         new LocaleSwitcher(),
         authActionSlot);
@@ -137,6 +150,57 @@ public class MainLayout extends AppLayout
     authActionSlot.add(buildAuthActionButton());
     drawerSlot.removeAll();
     drawerSlot.add(buildDrawer());
+    filterSlot.removeAll();
+    filterSlot.add(buildPublicationsFilter());
+  }
+
+  // ── Global publications filter (F6) ────────────────────────────
+
+  /**
+   * Builds the navbar's global search field + editorial-state selector, backed
+   * by the session-scoped {@link PublicationsFilter}. Only shown to subjects
+   * that hold {@code publications:read}; returns an empty {@link Div} otherwise,
+   * so anonymous visitors see no publications controls. Changing either control
+   * writes the session filter and navigates to the topic workspace, which reads
+   * the filter on render — the same holder is honoured by the editorial board.
+   */
+  private Component buildPublicationsFilter() {
+    Div slot = new Div();
+    if (!currentGrants().contains(PERM_PUBLICATIONS_READ)) {
+      return slot;
+    }
+    PublicationsFilter filter = PublicationsFilter.current();
+
+    TextField search = new TextField();
+    search.setId("global-search");
+    search.setPlaceholder(tr(K_NAV_SEARCH_PH, "Search topics…"));
+    search.setClearButtonVisible(true);
+    search.setValueChangeMode(ValueChangeMode.LAZY);
+    search.setValue(filter.titleQuery());
+    search.setPrefixComponent(VaadinIcon.SEARCH.create());
+    search.addValueChangeListener(e -> {
+      PublicationsFilter.current().setTitleQuery(e.getValue());
+      UI.getCurrent().navigate(TopicsView.class);
+    });
+
+    ComboBox<EditorialState> state = new ComboBox<>();
+    state.setId("global-state-filter");
+    state.setItems(EditorialState.values());
+    state.setItemLabelGenerator(EditorialState::name);
+    state.setPlaceholder(tr(K_NAV_FILTER_STATE_PH, "Any state"));
+    state.setClearButtonVisible(true);
+    state.setWidth("11em");
+    state.setValue(filter.state());
+    state.addValueChangeListener(e -> {
+      PublicationsFilter.current().setState(e.getValue());
+      UI.getCurrent().navigate(TopicsView.class);
+    });
+
+    slot.add(search, state);
+    slot.getStyle().set("display", "flex");
+    slot.getStyle().set("align-items", "center");
+    slot.getStyle().set("gap", "var(--lumo-space-s)");
+    return slot;
   }
 
   // ── Drawer ─────────────────────────────────────────────────────

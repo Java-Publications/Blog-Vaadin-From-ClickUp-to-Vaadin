@@ -37,6 +37,8 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.MultiSelectComboBox;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.grid.dnd.GridDropLocation;
+import com.vaadin.flow.component.grid.dnd.GridDropMode;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Span;
@@ -48,6 +50,7 @@ import com.vaadin.flow.component.splitlayout.SplitLayout;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.Route;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
@@ -76,6 +79,9 @@ public class TopicsView extends Composite<VerticalLayout> implements I18nSupport
   private final TextField searchField;
   private final MultiSelectComboBox<Tag> tagFilter;
   private final Div detail = new Div();
+
+  /** The part currently being dragged in the detail parts grid (F5 reorder). */
+  private transient Part draggedPart;
 
   {
     searchField = filterBar.addText(tr("themen.filter.search", "Search"),
@@ -187,6 +193,24 @@ public class TopicsView extends Composite<VerticalLayout> implements I18nSupport
     parts.addComponentColumn(this::partActions).setAutoWidth(true);
     parts.setItems(issue.partsInOrder());
     parts.setAllRowsVisible(true);
+    // F5 — reorder parts by dragging a row onto another (P0003 ordering).
+    parts.setId("parts-grid");
+    parts.setRowsDraggable(true);
+    parts.setDropMode(GridDropMode.BETWEEN);
+    parts.addDragStartListener(e ->
+        draggedPart = e.getDraggedItems().isEmpty() ? null : e.getDraggedItems().get(0));
+    parts.addDragEndListener(e -> draggedPart = null);
+    parts.addDropListener(e -> {
+      Part target = e.getDropTargetItem().orElse(null);
+      if (draggedPart != null && target != null && target != draggedPart) {
+        boolean after = e.getDropLocation() == GridDropLocation.BELOW;
+        issue.reorderParts(reorderedParts(issue.partsInOrder(), draggedPart, target, after));
+        repo.persist();
+        draggedPart = null;
+        showDetail(issue);
+        refreshMaster();
+      }
+    });
     detail.add(parts);
 
     Button addPart = new Button(tr("themen.part.add", "+ Add part"), e -> {
@@ -276,6 +300,25 @@ public class TopicsView extends Composite<VerticalLayout> implements I18nSupport
   }
 
   // ── helpers ────────────────────────────────────────────────────────────
+
+  /**
+   * Computes the new part order when {@code dragged} is moved next to
+   * {@code target}. {@code after} inserts below the target (drop location
+   * {@code BELOW}), otherwise above it. Pure and side-effect free so the drop
+   * handler's reordering can be unit-tested without a live browser; the result
+   * is handed to {@link Issue#reorderParts(List)}, which renumbers 1..n.
+   */
+  public static List<Part> reorderedParts(List<Part> order, Part dragged, Part target, boolean after) {
+    List<Part> next = new ArrayList<>(order);
+    next.remove(dragged);
+    int idx = next.indexOf(target);
+    if (idx < 0) {
+      next.add(dragged);
+    } else {
+      next.add(after ? idx + 1 : idx, dragged);
+    }
+    return next;
+  }
 
   private List<Tag> allTags() {
     return repo.issues().stream()

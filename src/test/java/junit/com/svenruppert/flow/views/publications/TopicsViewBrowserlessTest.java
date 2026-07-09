@@ -21,6 +21,7 @@ import com.svenruppert.flow.security.roles.AuthorizationRole;
 import com.svenruppert.flow.views.publications.TopicsView;
 import com.svenruppert.jsentinel.authorization.api.SubjectStores;
 import com.svenruppert.publications.model.Issue;
+import com.svenruppert.publications.model.Part;
 import com.svenruppert.publications.model.Tag;
 import com.svenruppert.publications.persistence.InMemoryPublicationsPersistence;
 import com.svenruppert.publications.persistence.PublicationsProvider;
@@ -29,6 +30,7 @@ import com.vaadin.browserless.BrowserlessTest;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.grid.dnd.GridDropMode;
 import com.vaadin.flow.component.html.H3;
 import junit.com.svenruppert.flow.TestSupport;
 import org.junit.jupiter.api.AfterEach;
@@ -37,6 +39,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
 
@@ -114,6 +117,45 @@ class TopicsViewBrowserlessTest extends BrowserlessTest {
     UI.getCurrent().navigate(TopicsView.class);
     assertEquals("Kein Thema gewählt", $view(com.vaadin.flow.component.html.H3.class).first().getText(),
         "the DE translation bundle must resolve, not fall back to English");
+  }
+
+  @Test
+  @DisplayName("the parts grid is a drop target for reordering rows")
+  @SuppressWarnings("unchecked")
+  void partsGridSupportsRowReordering() {
+    UI.getCurrent().navigate(TopicsView.class);
+    Grid<Issue> grid = (Grid<Issue>) $view(Grid.class).first();
+    Issue withPart = PublicationsProvider.repository().issues().stream()
+        .filter(i -> !i.parts().isEmpty()).findFirst().orElseThrow();
+    grid.select(withPart);
+
+    Grid<?> partsGrid = $view(Grid.class).all().stream()
+        .filter(g -> "parts-grid".equals(g.getId().orElse(null)))
+        .findFirst().orElseThrow(() -> new AssertionError("parts grid not rendered"));
+    assertTrue(partsGrid.isRowsDraggable(), "rows must be draggable for reordering");
+    assertEquals(GridDropMode.BETWEEN, partsGrid.getDropMode(),
+        "the grid must accept drops between rows");
+  }
+
+  @Test
+  @DisplayName("reorderedParts moves a dragged part below the target and renumbers 1..n")
+  void reorderMovesDraggedPartAfterTarget() {
+    PublicationsRepository repo =
+        new PublicationsRepository(new InMemoryPublicationsPersistence());
+    Issue issue = repo.createIssue("Blog – Series – Three parts");
+    Part p1 = issue.addPart();
+    Part p2 = issue.addPart();
+    Part p3 = issue.addPart();
+
+    // Drag p1 below p3 → the exact call the drop handler makes.
+    List<Part> newOrder = TopicsView.reorderedParts(issue.partsInOrder(), p1, p3, true);
+    assertEquals(List.of(p2, p3, p1), newOrder);
+
+    issue.reorderParts(newOrder);
+    assertEquals(List.of(p2, p3, p1), issue.partsInOrder());
+    assertEquals(1, p2.position());
+    assertEquals(2, p3.position());
+    assertEquals(3, p1.position());
   }
 
   @Test

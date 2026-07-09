@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## 00.30.00 — 2026-07-09
+
+Design alignment with the prototype.
+
+- **IBM Plex fonts + oklch palette**: the app font becomes IBM Plex Sans (IBM
+  Plex Mono for code), loaded via a Google-Fonts `@import` (bundle the woff2
+  files for a fully offline production build), and the `--app-brand-*` ramp is
+  re-expressed in perceptually-uniform oklch violet. A stale second
+  `--lumo-font-family` declaration that shadowed the new one was removed.
+  Cosmetic; the production frontend build (`-Pproduction`) stays green and the
+  full test suite is unaffected.
+
 ## 00.23.00 — 2026-07-09
 
 Import hardening — the ClickUp extract is now cached on disk.

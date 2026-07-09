@@ -129,6 +129,23 @@ class TopicsViewBrowserlessTest extends BrowserlessTest {
   }
 
   @Test
+  @DisplayName("selecting a topic with an original body renders the original text in the detail")
+  @SuppressWarnings("unchecked")
+  void detailShowsOriginalText() {
+    Issue described = PublicationsProvider.repository().createIssue("Blog – Import – With body");
+    described.setDescription("The original ClickUp body text.");
+    PublicationsProvider.repository().persist();
+
+    UI.getCurrent().navigate(TopicsView.class);
+    Grid<Issue> grid = (Grid<Issue>) $view(Grid.class).first();
+    grid.select(described);
+
+    assertTrue($view(com.vaadin.flow.component.html.Div.class).all().stream()
+            .anyMatch(d -> "The original ClickUp body text.".equals(d.getText())),
+        "the detail panel must render the selected topic's original text");
+  }
+
+  @Test
   @DisplayName("the master grid honours the session-scoped global title filter (F6)")
   @SuppressWarnings("unchecked")
   void masterGridHonoursSessionFilter() {

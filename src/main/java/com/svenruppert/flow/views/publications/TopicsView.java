@@ -187,6 +187,22 @@ public class TopicsView extends Composite<VerticalLayout> implements I18nSupport
       detail.add(origin, new Div());
     }
 
+    // Original body (e.g. the imported ClickUp task text), when present.
+    if (issue.description() != null && !issue.description().isBlank()) {
+      Span originalLabel = new Span(tr("themen.detail.original", "Original text"));
+      originalLabel.getStyle().set("font-weight", "600");
+      Div body = new Div();
+      body.setText(issue.description());
+      body.getStyle().set("white-space", "pre-wrap");
+      body.getStyle().set("background", "var(--lumo-contrast-5pct)");
+      body.getStyle().set("border-radius", "var(--lumo-border-radius-m)");
+      body.getStyle().set("padding", "var(--lumo-space-s)");
+      body.getStyle().set("max-height", "240px");
+      body.getStyle().set("overflow-y", "auto");
+      body.getStyle().set("font-size", "var(--lumo-font-size-s)");
+      detail.add(originalLabel, body);
+    }
+
     FlexLayout tags = new FlexLayout();
     tags.setFlexWrap(FlexLayout.FlexWrap.WRAP);
     tags.getStyle().set("gap", "var(--lumo-space-xs)");

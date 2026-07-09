@@ -106,4 +106,13 @@ class TopicsViewBrowserlessTest extends BrowserlessTest {
             .contains("+ Topic"),
         "the header must offer a '+ Topic' action");
   }
+
+  @Test
+  @DisplayName("German locale renders German labels (not the English fallback)")
+  void germanLocaleRendersGermanLabels() {
+    UI.getCurrent().setLocale(java.util.Locale.GERMAN);
+    UI.getCurrent().navigate(TopicsView.class);
+    assertEquals("Kein Thema gewählt", $view(com.vaadin.flow.component.html.H3.class).first().getText(),
+        "the DE translation bundle must resolve, not fall back to English");
+  }
 }

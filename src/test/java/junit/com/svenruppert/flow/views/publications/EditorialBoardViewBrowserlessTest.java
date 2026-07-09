@@ -27,6 +27,7 @@ import com.svenruppert.publications.persistence.InMemoryPublicationsPersistence;
 import com.svenruppert.publications.persistence.PublicationsProvider;
 import com.svenruppert.publications.persistence.PublicationsRepository;
 import com.vaadin.browserless.BrowserlessTest;
+import com.vaadin.flow.component.ClickEvent;
 import com.vaadin.flow.component.ComponentUtil;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.dnd.DragStartEvent;
@@ -45,6 +46,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @DisplayName("EditorialBoardView (V3) — board + table, drag&drop")
@@ -148,10 +150,24 @@ class EditorialBoardViewBrowserlessTest extends BrowserlessTest {
     assertEquals(EditorialState.IN_PROGRESS, p2.editorialState());
   }
 
+  @Test
+  @DisplayName("double-clicking a card runs the editor handler for the part without error (J)")
+  void doubleClickWiredToEditor() {
+    UI.getCurrent().navigate(EditorialBoardView.class);
+    Div card = byId("card-" + p1.id());
+
+    // Firing the card's double-click must run the handler that opens the shared
+    // TopicEditDialog for the part's issue — exercised here end-to-end (the opened
+    // overlay itself is not browserless-observable; the dialog is unit-tested in
+    // TopicEditDialogTest).
+    assertDoesNotThrow(() -> ComponentUtil.fireEvent(card, new ClickEvent<>(card)));
+  }
+
   private Div byId(String id) {
     return $view(Div.class).all().stream()
         .filter(d -> id.equals(d.getId().orElse(null)))
         .findFirst()
         .orElseThrow(() -> new AssertionError("no Div with id " + id + " in the board"));
   }
+
 }

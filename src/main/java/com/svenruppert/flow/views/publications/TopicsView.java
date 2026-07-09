@@ -23,6 +23,7 @@ import com.svenruppert.flow.views.MainLayout;
 import com.svenruppert.flow.views.ui.EmptyState;
 import com.svenruppert.flow.views.ui.FilterBar;
 import com.svenruppert.flow.views.ui.PageHeader;
+import com.svenruppert.publications.model.EditorialState;
 import com.svenruppert.publications.model.Issue;
 import com.svenruppert.publications.model.Part;
 import com.svenruppert.publications.model.Tag;
@@ -34,6 +35,7 @@ import com.vaadin.flow.component.Composite;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.combobox.MultiSelectComboBox;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
@@ -48,7 +50,6 @@ import com.vaadin.flow.component.orderedlayout.FlexLayout;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.splitlayout.SplitLayout;
-import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.Route;
 
@@ -82,6 +83,7 @@ public class TopicsView extends Composite<VerticalLayout> implements I18nSupport
   private final FilterBar filterBar = new FilterBar();
   private final TextField searchField;
   private final MultiSelectComboBox<Tag> tagFilter;
+  private final ComboBox<EditorialState> statusFilter;
   private final Div detail = new Div();
 
   /** The part currently being dragged in the detail parts grid (F5 reorder). */
@@ -93,6 +95,9 @@ public class TopicsView extends Composite<VerticalLayout> implements I18nSupport
     tagFilter = filterBar.addMultiSelect(tr("themen.filter.tags", "Tags"),
         allTags(), tr("themen.filter.tags.ph", "Any tag"));
     tagFilter.setItemLabelGenerator(Tag::name);
+    statusFilter = filterBar.addSingleSelect(tr("themen.filter.status", "Status"),
+        EditorialState.values(), tr("themen.filter.status.ph", "Any status"));
+    statusFilter.setItemLabelGenerator(EditorialState::name);
   }
 
   public TopicsView() {
@@ -110,14 +115,22 @@ public class TopicsView extends Composite<VerticalLayout> implements I18nSupport
       refreshMaster();
     });
     tagFilter.addValueChangeListener(e -> refreshMaster());
+    statusFilter.addValueChangeListener(e -> {
+      PublicationsFilter.current().setState(e.getValue());
+      refreshMaster();
+    });
     filterBar.onClear(this::refreshMaster);
     // Adopt the session-scoped global filter (set by the navbar search, F6) as
     // the initial title query so the filter survives navigation between views.
     searchField.setValue(PublicationsFilter.current().titleQuery());
+    statusFilter.setValue(PublicationsFilter.current().state());
 
-    grid.addColumn(Issue::title).setHeader(tr("themen.col.title", "Title")).setFlexGrow(1);
-    grid.addColumn(i -> i.parts().size()).setHeader(tr("themen.col.parts", "Parts")).setAutoWidth(true);
-    grid.addComponentColumn(this::statusSummary).setHeader(tr("themen.col.status", "Status")).setAutoWidth(true);
+    grid.addColumn(Issue::title).setHeader(tr("themen.col.title", "Title"))
+        .setFlexGrow(1).setResizable(true);
+    grid.addColumn(i -> i.parts().size()).setHeader(tr("themen.col.parts", "Parts"))
+        .setWidth("6em").setFlexGrow(0).setResizable(true);
+    grid.addComponentColumn(this::statusSummary).setHeader(tr("themen.col.status", "Status"))
+        .setWidth("14em").setFlexGrow(0).setResizable(true);
     grid.setSizeFull();
     grid.asSingleSelect().addValueChangeListener(e -> showDetail(e.getValue()));
 
@@ -182,7 +195,11 @@ public class TopicsView extends Composite<VerticalLayout> implements I18nSupport
 
     H3 title = new H3(issue.title());
     title.getStyle().set("margin", "0");
-    Button edit = new Button(tr("themen.edit", "Edit"), e -> openEditIssueDialog(issue));
+    Button edit = new Button(tr("themen.edit", "Edit"), e ->
+        new TopicEditDialog(issue, null, repo, () -> {
+          showDetail(issue);
+          refreshMaster();
+        }).open());
     edit.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
     HorizontalLayout titleRow = new HorizontalLayout(title, edit);
     titleRow.setAlignItems(FlexComponent.Alignment.CENTER);
@@ -210,14 +227,25 @@ public class TopicsView extends Composite<VerticalLayout> implements I18nSupport
       detail.add(originalLabel, body);
     }
 
+    Span tagsLabel = new Span(tr("themen.tags.label", "Tags"));
+    tagsLabel.getStyle().set("font-weight", "600");
+    tagsLabel.getStyle().set("display", "block");
+    tagsLabel.getStyle().set("color", "var(--lumo-secondary-text-color)");
+    tagsLabel.getStyle().set("font-size", "var(--lumo-font-size-s)");
+
     FlexLayout tags = new FlexLayout();
     tags.setFlexWrap(FlexLayout.FlexWrap.WRAP);
-    tags.getStyle().set("gap", "var(--lumo-space-xs)");
+    tags.setAlignItems(FlexComponent.Alignment.CENTER);
+    tags.getStyle().set("gap", "var(--lumo-space-s)");
+    tags.getStyle().set("margin-top", "var(--lumo-space-xs)");
     issue.tags().forEach(t -> tags.add(removableTag(issue, t)));
     Button addTag = new Button(tr("themen.tag.add", "+ Tag"), e -> openAddTagDialog(issue));
     addTag.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
     tags.add(addTag);
-    detail.add(tags);
+
+    Div tagsSection = new Div(tagsLabel, tags);
+    tagsSection.getStyle().set("margin", "var(--lumo-space-m) 0");
+    detail.add(tagsSection);
 
     Grid<Part> parts = new Grid<>(Part.class, false);
     parts.addColumn(p -> "#" + p.position()).setHeader("#").setAutoWidth(true);
@@ -306,38 +334,6 @@ public class TopicsView extends Composite<VerticalLayout> implements I18nSupport
     });
     Button cancel = new Button(tr("common.cancel", "Cancel"), e -> dialog.close());
     dialog.add(title);
-    dialog.getFooter().add(cancel, save);
-    dialog.open();
-    title.focus();
-  }
-
-  private void openEditIssueDialog(Issue issue) {
-    Dialog dialog = new Dialog();
-    dialog.setHeaderTitle(tr("themen.edit.title", "Edit topic"));
-    TextField title = new TextField(tr("themen.new.field", "Title"));
-    title.setWidthFull();
-    title.setValue(issue.title());
-    TextArea text = new TextArea(tr("themen.detail.original", "Original text"));
-    text.setWidthFull();
-    text.setMinHeight("10em");
-    text.setValue(issue.description() == null ? "" : issue.description());
-    Button save = primary(tr("common.save", "Save"), e -> {
-      String value = title.getValue() == null ? "" : title.getValue().strip();
-      if (value.isEmpty()) {
-        title.setInvalid(true);
-        title.setErrorMessage(tr("themen.new.required", "Title required"));
-        return;
-      }
-      issue.setTitle(value);
-      String body = text.getValue() == null ? "" : text.getValue();
-      issue.setDescription(body.isBlank() ? null : body);
-      repo.persist();
-      dialog.close();
-      showDetail(issue);
-      refreshMaster();
-    });
-    Button cancel = new Button(tr("common.cancel", "Cancel"), e -> dialog.close());
-    dialog.add(title, text);
     dialog.getFooter().add(cancel, save);
     dialog.open();
     title.focus();

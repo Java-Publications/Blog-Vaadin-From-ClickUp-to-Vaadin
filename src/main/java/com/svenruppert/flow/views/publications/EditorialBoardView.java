@@ -84,7 +84,7 @@ public class EditorialBoardView extends Composite<VerticalLayout> implements I18
     root.add(new PageHeader(
         tr("tafel.heading", "Editorial board"),
         tr("tafel.subtitle",
-            "Editorial state per part — drag a card to another column, or switch to the table for a grouped overview.")));
+            "Editorial state per part — drag a card to another column, double-click to edit, or switch to the table view.")));
 
     viewTabs.addSelectedChangeListener(e -> updateVisibleView());
     root.add(viewTabs);
@@ -100,6 +100,12 @@ public class EditorialBoardView extends Composite<VerticalLayout> implements I18
         .setHeader(tr("tafel.col.name", "Topic / status")).setFlexGrow(1);
     table.addColumn(this::rowVersions)
         .setHeader(tr("tafel.col.versions", "Versions")).setAutoWidth(true);
+    // Double-click a table row to see/edit its topic and status (K).
+    table.addItemDoubleClickListener(e -> {
+      if (e.getItem() instanceof PartRow partRow) {
+        openEditor(partRow.part());
+      }
+    });
     table.setSizeFull();
     table.setVisible(false);
     root.add(table);
@@ -186,6 +192,8 @@ public class EditorialBoardView extends Composite<VerticalLayout> implements I18
     dragSource.setDragData(part);
     dragSource.addDragStartListener(e -> draggedPart = part);
     dragSource.addDragEndListener(e -> draggedPart = null);
+    // Double-click a card to see/edit its topic and status (J).
+    card.addDoubleClickListener(e -> openEditor(part));
 
     String prefix = part.issue() != null ? part.issue().title() : "";
     Span title = new Span(prefix);
@@ -255,6 +263,13 @@ public class EditorialBoardView extends Composite<VerticalLayout> implements I18
 
   private static String partName(Part part) {
     return part.issue() != null ? part.issue().title() : "";
+  }
+
+  /** Opens the shared topic/part editor for {@code part} (double-click, J/K). */
+  private void openEditor(Part part) {
+    if (part != null && part.issue() != null) {
+      new TopicEditDialog(part.issue(), part, repo, this::refresh).open();
+    }
   }
 
   private static String actor() {

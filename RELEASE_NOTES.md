@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 00.21.00 — 2026-07-09
+
+Localization & polish for the publications MVP.
+
+- **German translations** for the seven new views: EN ground-truth + DE added for
+  121 publications-view i18n keys (`themen./pub./fassung./import./orte./liste./
+  verlauf./tafel.` + `dashboard.pub.`), EN/DE key sets at parity. The new views now
+  render German on a German locale instead of the English inline fallback; a
+  browserless test asserts the DE bundle resolves.
+- **Remove tags in the UI**: each tag badge in the Topics workspace carries a ✕
+  that removes the tag (`Issue.removeTag` + persist), completing P0002.
+- **Mutation floors recalibrated** for the publications packages against a real
+  PIT run (`tools/pit-baselines.txt`), replacing the provisional values from
+  V00.20.00.
+
 ## 00.20.01 — 2026-07-09
 
 Refactor-only patch. The publications code (domain, persistence, ETL, views and

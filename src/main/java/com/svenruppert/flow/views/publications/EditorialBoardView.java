@@ -29,6 +29,8 @@ import com.svenruppert.publications.model.Part;
 import com.svenruppert.publications.persistence.PublicationsProvider;
 import com.svenruppert.publications.persistence.PublicationsRepository;
 import com.vaadin.flow.component.Composite;
+import com.vaadin.flow.component.dnd.DragSource;
+import com.vaadin.flow.component.dnd.DropTarget;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.FlexLayout;
@@ -41,9 +43,9 @@ import java.util.List;
 /**
  * V3 — Editorial board. Shows the editorial progress of all {@link Part}s at a
  * glance: one column per {@link EditorialState}, in which the parts sit as cards.
- * Advancing the state happens through the state {@link Select} on each card (the
- * low-barrier, testable equivalent of dragging a card; drag&drop is a later
- * enhancement). Served processes: P0007, P0020 (editorial dimension).
+ * A card can be <b>dragged</b> onto another column to advance its state; the state
+ * {@link Select} on each card stays as an accessible, equally-capable fallback.
+ * Served processes: P0007, P0020 (editorial dimension).
  */
 @Route(value = EditorialBoardView.NAV, layout = MainLayout.class)
 @VisibleFor(AuthorizationRole.USER)
@@ -54,6 +56,9 @@ public class EditorialBoardView extends Composite<VerticalLayout> implements I18
   private final transient PublicationsRepository repo = PublicationsProvider.repository();
   private final FlexLayout board = new FlexLayout();
 
+  /** The part currently being dragged; set on drag start, cleared on drag end/drop. */
+  private transient Part draggedPart;
+
   public EditorialBoardView() {
     VerticalLayout root = getContent();
     root.setSizeFull();
@@ -61,7 +66,7 @@ public class EditorialBoardView extends Composite<VerticalLayout> implements I18
 
     root.add(new PageHeader(
         tr("tafel.heading", "Editorial board"),
-        tr("tafel.subtitle", "Editorial state per part — change the state on a card.")));
+        tr("tafel.subtitle", "Editorial state per part — drag a card to a column or use its state selector.")));
 
     board.setWidthFull();
     board.getStyle().set("gap", "var(--lumo-space-m)");
@@ -88,6 +93,11 @@ public class EditorialBoardView extends Composite<VerticalLayout> implements I18
 
   private Div column(EditorialState state, List<Part> parts) {
     Div col = new Div();
+    col.setId("col-" + state.name());
+    // Each column is a drop target: dropping a dragged card here advances the
+    // part's editorial state to this column's state.
+    DropTarget<Div> dropTarget = DropTarget.create(col);
+    dropTarget.addDropListener(e -> onDrop(state));
     col.getStyle().set("flex", "0 0 240px");
     col.getStyle().set("background", "var(--lumo-contrast-5pct)");
     col.getStyle().set("border-radius", "var(--lumo-border-radius-l)");
@@ -108,8 +118,14 @@ public class EditorialBoardView extends Composite<VerticalLayout> implements I18
 
   private Div card(Part part) {
     Div card = new Div();
+    card.setId("card-" + part.id());
     card.addClassName(TemplateBrand.CSS_CARD);
     card.getStyle().set("padding", "var(--lumo-space-s)");
+    // Each card is a drag source; the dragged part is tracked for the drop.
+    DragSource<Div> dragSource = DragSource.create(card);
+    dragSource.setDragData(part);
+    dragSource.addDragStartListener(e -> draggedPart = part);
+    dragSource.addDragEndListener(e -> draggedPart = null);
 
     String prefix = part.issue() != null ? part.issue().title() : "";
     Span title = new Span(prefix);
@@ -135,6 +151,20 @@ public class EditorialBoardView extends Composite<VerticalLayout> implements I18
 
     card.add(title, info, move);
     return card;
+  }
+
+  /**
+   * Handles a card dropped onto the column for {@code target}: advances the
+   * dragged part's editorial state (unless it is already there), persists and
+   * re-renders the board. Shared effect with the per-card state {@link Select}.
+   */
+  private void onDrop(EditorialState target) {
+    if (draggedPart != null && draggedPart.editorialState() != target) {
+      draggedPart.changeState(target, actor());
+      repo.persist();
+      draggedPart = null;
+      refresh();
+    }
   }
 
   private static String actor() {

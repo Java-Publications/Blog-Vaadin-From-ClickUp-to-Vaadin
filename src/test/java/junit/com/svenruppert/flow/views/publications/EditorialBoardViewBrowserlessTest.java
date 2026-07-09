@@ -27,7 +27,11 @@ import com.svenruppert.publications.persistence.InMemoryPublicationsPersistence;
 import com.svenruppert.publications.persistence.PublicationsProvider;
 import com.svenruppert.publications.persistence.PublicationsRepository;
 import com.vaadin.browserless.BrowserlessTest;
+import com.vaadin.flow.component.ComponentUtil;
 import com.vaadin.flow.component.UI;
+import com.vaadin.flow.component.dnd.DragStartEvent;
+import com.vaadin.flow.component.dnd.DropEvent;
+import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.select.Select;
 import junit.com.svenruppert.flow.TestSupport;
@@ -41,8 +45,11 @@ import java.util.Locale;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@DisplayName("EditorialBoardView (V3) — columns per state")
+@DisplayName("EditorialBoardView (V3) — columns per state + drag&drop")
 class EditorialBoardViewBrowserlessTest extends BrowserlessTest {
+
+  private Part p1;
+  private Part p2;
 
   @BeforeEach
   void setUp() {
@@ -54,8 +61,8 @@ class EditorialBoardViewBrowserlessTest extends BrowserlessTest {
     PublicationsRepository repo =
         new PublicationsRepository(new InMemoryPublicationsPersistence());
     Issue issue = repo.createIssue("Blog – Navigation – Coupled navigation");
-    issue.addPart();
-    Part p2 = issue.addPart();
+    p1 = issue.addPart();
+    p2 = issue.addPart();
     p2.changeState(EditorialState.IN_PROGRESS, "Sven");
     repo.persist();
     PublicationsProvider.setRepository(repo);
@@ -79,5 +86,32 @@ class EditorialBoardViewBrowserlessTest extends BrowserlessTest {
     assertEquals("Editorial board", $view(H1.class).first().getText());
     assertEquals(2, $view(Select.class).all().size(),
         "one move-Select per part card (two seeded parts)");
+  }
+
+  @Test
+  @DisplayName("dragging a BACKLOG card onto the IN_PROGRESS column advances the part's state")
+  void dropAdvancesEditorialState() {
+    UI.getCurrent().navigate(EditorialBoardView.class);
+    assertEquals(EditorialState.BACKLOG, p1.editorialState(), "precondition: p1 starts in BACKLOG");
+
+    Div card = byId("card-" + p1.id());
+    Div column = byId("col-" + EditorialState.IN_PROGRESS.name());
+
+    // Simulate the client's drag&drop round-trip: drag start on the card marks the
+    // dragged part, the drop on the target column fires the state advance.
+    ComponentUtil.fireEvent(card, new DragStartEvent<>(card, true));
+    ComponentUtil.fireEvent(column, new DropEvent<>(column, true, "move"));
+
+    assertEquals(EditorialState.IN_PROGRESS, p1.editorialState(),
+        "the drop must advance the part to the target column's state");
+    // The already-IN_PROGRESS part is untouched.
+    assertEquals(EditorialState.IN_PROGRESS, p2.editorialState());
+  }
+
+  private Div byId(String id) {
+    return $view(Div.class).all().stream()
+        .filter(d -> id.equals(d.getId().orElse(null)))
+        .findFirst()
+        .orElseThrow(() -> new AssertionError("no Div with id " + id + " in the board"));
   }
 }

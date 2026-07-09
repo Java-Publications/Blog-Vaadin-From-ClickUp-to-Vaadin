@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+## 00.22.00 — 2026-07-09
+
+Interaction cycle — drag&drop and a global filter for the publications workspace.
+
+- **Editorial-board drag&drop**: a part card can be dragged onto another state
+  column to advance its editorial state (`Part.changeState` + persist); the
+  per-card state selector stays as an accessible, equally-capable fallback.
+- **Reorder parts by drag&drop**: the topic-detail parts grid is row-draggable
+  with a between-rows drop mode; dropping a row reorders the parts
+  (`Issue.reorderParts`, which renumbers 1..n). The order computation is a pure,
+  unit-tested helper.
+- **Global navbar search + status filter**: a session-scoped `PublicationsFilter`
+  (title substring + optional `EditorialState`), written by a navbar search field
+  and state selector (shown to subjects with `publications:read`) and read by the
+  topic workspace and editorial board, so the filter survives navigation between
+  them.
+
 ## 00.21.00 — 2026-07-09
 
 Localization & polish for the publications MVP.

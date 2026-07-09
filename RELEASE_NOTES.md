@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 00.32.00 — 2026-07-09
+
+- **Editable topic entries**: the topic workspace detail gains an "Edit" action
+  that opens a dialog to change a topic's title and original text
+  (previously read-only — only places were editable), so imported ClickUp topics
+  can be corrected in place.
+
 ## 00.31.00 — 2026-07-09
 
 Import robustness & editorial workspace — bug fixes and features reported against

@@ -34,6 +34,7 @@ import com.vaadin.flow.component.dnd.DropEvent;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.select.Select;
+import com.vaadin.flow.component.treegrid.TreeGrid;
 import junit.com.svenruppert.flow.TestSupport;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,11 +42,12 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Locale;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@DisplayName("EditorialBoardView (V3) — columns per state + drag&drop")
+@DisplayName("EditorialBoardView (V3) — board + table, drag&drop")
 class EditorialBoardViewBrowserlessTest extends BrowserlessTest {
 
   private Part p1;
@@ -86,13 +88,44 @@ class EditorialBoardViewBrowserlessTest extends BrowserlessTest {
   }
 
   @Test
-  @DisplayName("NAV is 'redaktion' and each part gets a move-select card")
+  @DisplayName("NAV is 'redaktion'; cards are drag handles with no redundant state select (F)")
   void boardRendersCards() {
     assertEquals("redaktion", EditorialBoardView.NAV);
     UI.getCurrent().navigate(EditorialBoardView.class);
     assertEquals("Editorial board", $view(H1.class).first().getText());
-    assertEquals(2, $view(Select.class).all().size(),
-        "one move-Select per part card (two seeded parts)");
+    assertEquals(0, $view(Select.class).all().size(),
+        "the per-card state Select was removed — the column already denotes the state");
+    long cards = $view(Div.class).all().stream()
+        .filter(d -> d.getId().orElse("").startsWith("card-")).count();
+    assertEquals(2, cards, "two seeded parts render as two draggable cards");
+  }
+
+  @Test
+  @DisplayName("switching to the Table tab reveals a TreeGrid grouped by status (C)")
+  void tableViewPresent() {
+    UI.getCurrent().navigate(EditorialBoardView.class);
+    // The table is hidden until its tab is selected; $view only sees visible ones.
+    com.vaadin.flow.component.tabs.Tabs tabs =
+        $view(com.vaadin.flow.component.tabs.Tabs.class).first();
+    tabs.setSelectedIndex(1);
+    assertEquals(1, $view(TreeGrid.class).all().size(),
+        "a grouped-by-status table (TreeGrid) becomes visible on the Table tab");
+  }
+
+  @Test
+  @DisplayName("partsInStateSortedByName groups a state's parts sorted by topic name (C)")
+  void tableSortsByName() {
+    PublicationsRepository r =
+        new PublicationsRepository(new InMemoryPublicationsPersistence());
+    Part bravo = r.createIssue("Bravo topic").addPart();
+    Part alpha = r.createIssue("Alpha topic").addPart();
+    Part charlie = r.createIssue("Charlie topic").addPart();
+
+    List<Part> sorted = EditorialBoardView.partsInStateSortedByName(
+        List.of(bravo, alpha, charlie), EditorialState.BACKLOG);
+
+    assertEquals(List.of(alpha, bravo, charlie), sorted,
+        "within a status, parts are ordered by topic name A→C");
   }
 
   @Test

@@ -35,16 +35,26 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.FlexLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.select.Select;
+import com.vaadin.flow.component.tabs.Tab;
+import com.vaadin.flow.component.tabs.Tabs;
+import com.vaadin.flow.component.treegrid.TreeGrid;
 import com.vaadin.flow.router.Route;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 
 /**
- * V3 — Editorial board. Shows the editorial progress of all {@link Part}s at a
- * glance: one column per {@link EditorialState}, in which the parts sit as cards.
- * A card can be <b>dragged</b> onto another column to advance its state; the state
- * {@link Select} on each card stays as an accessible, equally-capable fallback.
+ * V3 — Editorial board. Shows the editorial progress of all {@link Part}s in two
+ * switchable views:
+ * <ul>
+ *   <li><b>Board</b> — one Kanban column per {@link EditorialState}; a card is
+ *       dragged onto another column to advance its state (the column already
+ *       denotes the state, so the card carries no redundant selector).</li>
+ *   <li><b>Table</b> — a tree grouped by {@link EditorialState}, within each group
+ *       sorted by topic name; a read overview complementing the board.</li>
+ * </ul>
  * Served processes: P0007, P0020 (editorial dimension).
  */
 @Route(value = EditorialBoardView.NAV, layout = MainLayout.class)
@@ -56,10 +66,17 @@ public class EditorialBoardView extends Composite<VerticalLayout> implements I18
   private static final long serialVersionUID = 1L;
 
   private final transient PublicationsRepository repo = PublicationsProvider.repository();
+
   private final FlexLayout board = new FlexLayout();
+  private final TreeGrid<BoardRow> table = new TreeGrid<>();
+  private final Tab boardTab = new Tab(tr("tafel.view.board", "Board"));
+  private final Tab tableTab = new Tab(tr("tafel.view.table", "Table"));
+  private final Tabs viewTabs = new Tabs(boardTab, tableTab);
 
   /** The part currently being dragged; set on drag start, cleared on drag end/drop. */
   private transient Part draggedPart;
+  /** The parts currently in view (after the global filter), feeding the table tree. */
+  private transient List<Part> currentParts = List.of();
 
   public EditorialBoardView() {
     VerticalLayout root = getContent();
@@ -68,7 +85,11 @@ public class EditorialBoardView extends Composite<VerticalLayout> implements I18
 
     root.add(new PageHeader(
         tr("tafel.heading", "Editorial board"),
-        tr("tafel.subtitle", "Editorial state per part — drag a card to a column or use its state selector.")));
+        tr("tafel.subtitle",
+            "Editorial state per part — drag a card to another column, or switch to the table for a grouped overview.")));
+
+    viewTabs.addSelectedChangeListener(e -> updateVisibleView());
+    root.add(viewTabs);
 
     board.setWidthFull();
     board.getStyle().set("gap", "var(--lumo-space-m)");
@@ -77,24 +98,54 @@ public class EditorialBoardView extends Composite<VerticalLayout> implements I18
     root.add(board);
     root.setFlexGrow(1, board);
 
+    table.addHierarchyColumn(this::rowLabel)
+        .setHeader(tr("tafel.col.name", "Topic / status")).setFlexGrow(1);
+    table.addColumn(this::rowVersions)
+        .setHeader(tr("tafel.col.versions", "Versions")).setAutoWidth(true);
+    table.setSizeFull();
+    table.setVisible(false);
+    root.add(table);
+    root.setFlexGrow(1, table);
+
     refresh();
   }
 
+  private void updateVisibleView() {
+    boolean showBoard = viewTabs.getSelectedTab() == boardTab;
+    board.setVisible(showBoard);
+    table.setVisible(!showBoard);
+  }
+
   private void refresh() {
-    board.removeAll();
     // Honour the global navbar search (F6): only parts of matching issues.
     PublicationsFilter filter = PublicationsFilter.current();
-    List<Part> all = repo.issues().stream()
+    currentParts = repo.issues().stream()
         .filter(filter::matchesTitle)
         .flatMap(i -> i.parts().stream())
         .toList();
+
+    // ── Kanban board ──
+    board.removeAll();
     for (EditorialState state : EditorialState.values()) {
-      List<Part> inColumn = all.stream()
+      List<Part> inColumn = currentParts.stream()
           .filter(p -> p.editorialState() == state)
           .toList();
       board.add(column(state, inColumn));
     }
+
+    // ── Table (grouped by status, sorted by name) ──
+    List<BoardRow> groups = new ArrayList<>();
+    for (EditorialState state : EditorialState.values()) {
+      List<Part> inState = partsInStateSortedByName(currentParts, state);
+      if (!inState.isEmpty()) {
+        groups.add(new GroupRow(state, inState.size()));
+      }
+    }
+    table.setItems(groups, this::childrenOf);
+    table.expand(groups);
   }
+
+  // ── Kanban board ─────────────────────────────────────────────────────────
 
   private Div column(EditorialState state, List<Part> parts) {
     Div col = new Div();
@@ -126,7 +177,9 @@ public class EditorialBoardView extends Composite<VerticalLayout> implements I18
     card.setId("card-" + part.id());
     card.addClassName(TemplateBrand.CSS_CARD);
     card.getStyle().set("padding", "var(--lumo-space-s)");
-    // Each card is a drag source; the dragged part is tracked for the drop.
+    card.getStyle().set("cursor", "grab");
+    // Each card is a drag source; the dragged part is tracked for the drop. The
+    // column denotes the state, so the card needs no state selector.
     DragSource<Div> dragSource = DragSource.create(card);
     dragSource.setDragData(part);
     dragSource.addDragStartListener(e -> draggedPart = part);
@@ -142,26 +195,14 @@ public class EditorialBoardView extends Composite<VerticalLayout> implements I18
     info.getStyle().set("font-size", "var(--lumo-font-size-s)");
     info.getStyle().set("display", "block");
 
-    Select<EditorialState> move = new Select<>();
-    move.setItems(EditorialState.values());
-    move.setValue(part.editorialState());
-    move.setWidthFull();
-    move.addValueChangeListener(e -> {
-      if (e.getValue() != null && e.getValue() != part.editorialState()) {
-        part.changeState(e.getValue(), actor());
-        repo.persist();
-        refresh();
-      }
-    });
-
-    card.add(title, info, move);
+    card.add(title, info);
     return card;
   }
 
   /**
    * Handles a card dropped onto the column for {@code target}: advances the
    * dragged part's editorial state (unless it is already there), persists and
-   * re-renders the board. Shared effect with the per-card state {@link Select}.
+   * re-renders both views.
    */
   private void onDrop(EditorialState target) {
     if (draggedPart != null && draggedPart.editorialState() != target) {
@@ -172,8 +213,61 @@ public class EditorialBoardView extends Composite<VerticalLayout> implements I18
     }
   }
 
+  // ── Table tree ───────────────────────────────────────────────────────────
+
+  private Collection<BoardRow> childrenOf(BoardRow row) {
+    if (row instanceof GroupRow group) {
+      return partsInStateSortedByName(currentParts, group.state()).stream()
+          .map(part -> (BoardRow) new PartRow(part))
+          .toList();
+    }
+    return List.of();
+  }
+
+  private String rowLabel(BoardRow row) {
+    if (row instanceof GroupRow group) {
+      return group.state().name() + " (" + group.count() + ")";
+    }
+    Part part = ((PartRow) row).part();
+    return partName(part) + " · " + tr("tafel.part", "Part {0}", part.position());
+  }
+
+  private String rowVersions(BoardRow row) {
+    if (row instanceof PartRow partRow) {
+      return String.valueOf(partRow.part().languageVersions().size());
+    }
+    return "";
+  }
+
+  /**
+   * The parts in {@code state}, sorted by topic name (case-insensitive), ties
+   * broken by position. Pure and public so the grouping/sorting can be unit-tested.
+   */
+  public static List<Part> partsInStateSortedByName(List<Part> all, EditorialState state) {
+    return all.stream()
+        .filter(p -> p.editorialState() == state)
+        .sorted(Comparator.comparing(EditorialBoardView::partName, String.CASE_INSENSITIVE_ORDER)
+            .thenComparingInt(Part::position))
+        .toList();
+  }
+
+  private static String partName(Part part) {
+    return part.issue() != null ? part.issue().title() : "";
+  }
+
   private static String actor() {
     return SubjectStores.subjectStore().currentSubject(AppUser.class)
         .map(AppUser::name).orElse("system");
+  }
+
+  // ── table row model ────────────────────────────────────────────────────────
+
+  private sealed interface BoardRow permits GroupRow, PartRow {
+  }
+
+  private record GroupRow(EditorialState state, int count) implements BoardRow {
+  }
+
+  private record PartRow(Part part) implements BoardRow {
   }
 }

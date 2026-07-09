@@ -21,12 +21,16 @@ import com.svenruppert.flow.security.roles.AuthorizationRole;
 import com.svenruppert.flow.views.AppLoginView;
 import com.svenruppert.flow.views.DashboardView;
 import com.svenruppert.jsentinel.authorization.api.SubjectStores;
+import com.svenruppert.publications.persistence.InMemoryPublicationsPersistence;
+import com.svenruppert.publications.persistence.PublicationsProvider;
+import com.svenruppert.publications.persistence.PublicationsRepository;
 import com.vaadin.browserless.BrowserlessTest;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.html.Span;
 import junit.com.svenruppert.flow.TestSupport;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -52,6 +56,15 @@ class DashboardViewBrowserlessTest extends BrowserlessTest {
     if (ui != null) {
       ui.setLocale(Locale.ENGLISH);
     }
+    // Keep the dashboard's publications metric row off the real Eclipse-Store —
+    // an in-memory override avoids opening (and locking) target/test-data.
+    PublicationsProvider.setRepository(
+        new PublicationsRepository(new InMemoryPublicationsPersistence()));
+  }
+
+  @AfterEach
+  void resetPublications() {
+    PublicationsProvider.reset();
   }
 
   @Test

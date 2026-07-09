@@ -47,10 +47,13 @@ com.svenruppert.flow.security.storage=95
 com.svenruppert.flow.views=22
 com.svenruppert.flow.views.main=35
 com.svenruppert.flow.views.ui=27
-com.svenruppert.flow.views.publications=10
+com.svenruppert.flow.views.publications=19
 
-# Publikationsverwaltung domain (V00.20.00). Provisional floors — recalibrate
-# after the first full PIT run over these packages.
-com.svenruppert.publications.model=60
-com.svenruppert.publications.persistence=45
-com.svenruppert.publications.importetl=50
+# Publikationsverwaltung domain — recalibrated against a real PIT run on
+# 2026-07-09 (V00.21.00). Measured mutation coverage: model 88 %, persistence
+# 76 %, importetl 71 %, views.publications 22 %. Floors set 2–3 points below.
+# The view floor stays low on purpose — UI-assembly code is exercised by
+# BrowserlessTest visual inspection, not exhaustive mutation kills.
+com.svenruppert.publications.model=85
+com.svenruppert.publications.persistence=73
+com.svenruppert.publications.importetl=68

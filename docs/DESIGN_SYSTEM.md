@@ -21,12 +21,18 @@ Refork the template ⇒ change six tokens and the whole app retheme's.
 
 | Token | Default | Meaning |
 |---|---|---|
-| `--app-brand-50/100/300/500/600/700` | violet scale | Primary palette. Drives Lumo's `--lumo-primary-color`. |
+| `--app-brand-50/100/300/500/600/700` | oklch violet ramp | Primary palette. Drives Lumo's `--lumo-primary-color`. |
 | `--app-shadow-sm` / `-md` / `-lg` | soft slate | Elevation scale — gentler than Lumo defaults. |
 | `--app-radius-sm` / `-md` / `-lg` / `-pill` | 6/12/20/999 px | Border radii. |
 | `--app-hero-gradient` | radial brand → page | Public hero + setup view backdrop. |
 
-Lumo overrides live in the same block (`--lumo-font-family`, body /
+Since V00.30.00 the brand palette is expressed in **oklch** (perceptually
+uniform lightness) and the app font is **IBM Plex Sans** (with IBM Plex Mono
+for code), matching the design prototype. The font is pulled from Google Fonts
+via an `@import` at the top of `styles.css` — bundle the woff2 files if you need
+a fully offline production build.
+
+Lumo overrides live in the same block (`--lumo-font-family` → IBM Plex, body /
 secondary / tertiary text color, primary color). These are the only
 places where the template diverges from stock Lumo — replace with
 your own and the whole app follows.
@@ -117,7 +123,7 @@ To take this template for a new product:
    `LANDING_INTRO`, `ICON`. That's the wordmark, navbar, hero copy,
    document title, all in one shot.
 2. **Open `styles.css`** — change the `--app-brand-*` palette. Six
-   hex values. Lumo's `--lumo-primary-*` will follow because it
+   oklch values. Lumo's `--lumo-primary-*` will follow because it
    maps from `--app-brand-600`.
 3. **Open `MainLayout.java`** if you want a different drawer
    structure. Sections are defined in `buildDrawer()` — add a new

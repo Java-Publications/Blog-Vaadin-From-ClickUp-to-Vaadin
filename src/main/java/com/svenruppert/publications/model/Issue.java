@@ -35,6 +35,7 @@ public final class Issue {
 
   private final UUID id;
   private String title;
+  private String description;
   private final Set<Tag> tags = new LinkedHashSet<>();
   private final List<Part> parts = new ArrayList<>();
   private String origin;
@@ -72,6 +73,15 @@ public final class Issue {
 
   public void setOrigin(String origin) {
     this.origin = origin;
+  }
+
+  /** Optional original body (e.g. the ClickUp task text); {@code null} if none. */
+  public String description() {
+    return description;
+  }
+
+  public void setDescription(String description) {
+    this.description = description;
   }
 
   // ── tags ─────────────────────────────────────────────────────────────────

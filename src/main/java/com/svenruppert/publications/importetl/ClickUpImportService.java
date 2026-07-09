@@ -17,6 +17,7 @@
 package com.svenruppert.publications.importetl;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.svenruppert.dependencies.core.logger.HasLogger;
 import com.svenruppert.dependencies.core.net.HttpStatus;
 import com.svenruppert.dependencies.core.net.MediaType;
@@ -35,7 +36,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 
 /**
  * ClickUp import as ETL. Extraction pulls the raw JSON responses of the ClickUp
@@ -51,28 +55,69 @@ public final class ClickUpImportService implements HasLogger {
   private static final String API_BASE = "https://api.clickup.com/api/v2/list/";
   private static final String IMPORT_ACTOR = "clickup-import";
 
+  /** Hard cap on pages fetched, so a misbehaving API can never loop forever. */
+  private static final int MAX_PAGES = 1000;
+
   private final ObjectMapper mapper = new ObjectMapper();
 
   /**
-   * Pulls the tasks of a ClickUp list through the real API and returns the raw
-   * JSON response. {@code token} is the ClickUp API token, {@code listId} the
-   * target list.
+   * Pulls <em>all</em> tasks of a ClickUp list through the real API and returns
+   * them as one combined {@code {"tasks":[…]}} JSON document. The ClickUp task
+   * endpoint is paginated at 100 tasks per page, so this walks {@code ?page=0,1,…}
+   * until {@code last_page} (or an empty page), concatenating the raw task nodes —
+   * every original field is preserved for the transform/load and the local cache.
+   * {@code token} is the ClickUp API token, {@code listId} the target list.
    */
   public String extract(String token, String listId) throws IOException, InterruptedException {
     HttpClient client = HttpClient.newHttpClient();
-    HttpRequest request = HttpRequest.newBuilder(
-            URI.create(API_BASE + listId + "/task?include_closed=true"))
-        .header("Authorization", token)
-        .header("Accept", MediaType.APPLICATION_JSON.mime())
-        .GET()
-        .build();
-    HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-    if (response.statusCode() != HttpStatus.OK.code()) {
-      throw new IllegalStateException(
-          "ClickUp API returned HTTP " + response.statusCode());
+    ArrayNode allTasks = mapper.createArrayNode();
+    int page = 0;
+    boolean lastPage = false;
+    while (!lastPage && page < MAX_PAGES) {
+      HttpRequest request = HttpRequest.newBuilder(
+              URI.create(API_BASE + listId + "/task?include_closed=true&page=" + page))
+          .header("Authorization", token)
+          .header("Accept", MediaType.APPLICATION_JSON.mime())
+          .GET()
+          .build();
+      HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+      if (response.statusCode() != HttpStatus.OK.code()) {
+        throw new IllegalStateException(
+            "ClickUp API returned HTTP " + response.statusCode() + " on page " + page);
+      }
+      JsonNode root = mapper.readTree(response.body());
+      JsonNode tasks = root.get("tasks");
+      int onPage = 0;
+      if (tasks != null && tasks.isArray()) {
+        for (JsonNode task : tasks) {
+          allTasks.add(task);
+          onPage++;
+        }
+      }
+      lastPage = root.path("last_page").asBoolean(false) || onPage == 0;
+      logger().info("ClickUp extract: list {} page {} → {} tasks ({} total so far)",
+          listId, page, onPage, allTasks.size());
+      page++;
     }
-    logger().info("ClickUp extract: {} bytes from list {}", response.body().length(), listId);
-    return response.body();
+    ObjectNode combined = mapper.createObjectNode();
+    combined.set("tasks", allTasks);
+    String json = mapper.writeValueAsString(combined);
+    logger().info("ClickUp extract: {} tasks across {} page(s) from list {} ({} bytes)",
+        allTasks.size(), page, listId, json.length());
+    return json;
+  }
+
+  /**
+   * Reports transform/load progress so a UI can drive a determinate progress bar.
+   * {@code done} counts the tasks processed so far, {@code total} the tasks in the
+   * extract.
+   */
+  @FunctionalInterface
+  public interface ProgressListener {
+    void onProgress(int done, int total);
+
+    /** A listener that ignores every update. */
+    ProgressListener NONE = (done, total) -> { };
   }
 
   /**
@@ -81,13 +126,26 @@ public final class ClickUpImportService implements HasLogger {
    * therefore creates no duplicates.
    */
   public ImportReport transformAndLoad(String rawJson, PublicationsRepository repo) {
+    return transformAndLoad(rawJson, repo, ProgressListener.NONE);
+  }
+
+  /**
+   * As {@link #transformAndLoad(String, PublicationsRepository)}, but reports
+   * per-task progress to {@code listener} (the final {@link #load persist} runs
+   * once the loop completes).
+   */
+  public ImportReport transformAndLoad(String rawJson, PublicationsRepository repo,
+                                       ProgressListener listener) {
     ClickUpList list = mapper.readValue(rawJson, ClickUpList.class);
     int created = 0;
     int skipped = 0;
     Map<String, Integer> distribution = new LinkedHashMap<>();
 
     List<ClickUpTask> tasks = list.tasks() == null ? List.of() : list.tasks();
-    for (ClickUpTask task : tasks) {
+    int total = tasks.size();
+    logger().info("ClickUp transform+load: processing {} tasks", total);
+    for (int idx = 0; idx < total; idx++) {
+      ClickUpTask task = tasks.get(idx);
       String src = task.status() == null || task.status().status() == null
           ? "(none)" : task.status().status();
       EditorialState state = mapStatus(src);
@@ -95,21 +153,23 @@ public final class ClickUpImportService implements HasLogger {
 
       if (repo.findIssueByOrigin(task.id()).isPresent()) {
         skipped++;
-        continue;
+      } else {
+        Issue issue = new Issue(task.name());
+        issue.setOrigin(task.id());
+        issue.setDescription(task.content());
+        if (task.tags() != null) {
+          task.tags().stream()
+              .filter(t -> t.name() != null && !t.name().isBlank())
+              .forEach(t -> issue.addTag(new Tag(t.name())));
+        }
+        Part part = issue.addPart();
+        if (state != EditorialState.BACKLOG) {
+          part.changeState(state, IMPORT_ACTOR);
+        }
+        repo.dataRoot().addIssue(issue);
+        created++;
       }
-      Issue issue = new Issue(task.name());
-      issue.setOrigin(task.id());
-      if (task.tags() != null) {
-        task.tags().stream()
-            .filter(t -> t.name() != null && !t.name().isBlank())
-            .forEach(t -> issue.addTag(new Tag(t.name())));
-      }
-      Part part = issue.addPart();
-      if (state != EditorialState.BACKLOG) {
-        part.changeState(state, IMPORT_ACTOR);
-      }
-      repo.dataRoot().addIssue(issue);
-      created++;
+      listener.onProgress(idx + 1, total);
     }
     repo.persist();
     logger().info("ClickUp transform+load: {} created, {} skipped", created, skipped);
@@ -138,7 +198,20 @@ public final class ClickUpImportService implements HasLogger {
 
   @JsonIgnoreProperties(ignoreUnknown = true)
   record ClickUpTask(String id, String name, ClickUpStatus status,
-                     List<ClickUpTag> tags, String url) {
+                     List<ClickUpTag> tags, String url,
+                     String description,
+                     @JsonProperty("text_content") String textContent) {
+
+    /** The task's original body — plain {@code text_content} preferred, else markdown. */
+    String content() {
+      if (textContent != null && !textContent.isBlank()) {
+        return textContent;
+      }
+      if (description != null && !description.isBlank()) {
+        return description;
+      }
+      return null;
+    }
   }
 
   @JsonIgnoreProperties(ignoreUnknown = true)

@@ -26,7 +26,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @DisplayName("ClickUpImportService — transform + idempotent load")
@@ -81,6 +85,36 @@ class ClickUpImportServiceTest {
     assertEquals(0, second.created());
     assertEquals(2, second.skipped());
     assertEquals(2, repo.issues().size(), "no duplicates on repeat run");
+  }
+
+  @Test
+  @DisplayName("progress listener is notified once per task, ending at done == total")
+  void reportsProgress() {
+    List<int[]> ticks = new ArrayList<>();
+    service.transformAndLoad(FIXTURE, repo, (done, total) -> ticks.add(new int[]{done, total}));
+
+    assertEquals(2, ticks.size(), "one tick per task");
+    assertEquals(1, ticks.get(0)[0]);
+    assertEquals(2, ticks.get(0)[1]);
+    assertEquals(2, ticks.get(1)[0], "final tick reaches the total");
+    assertEquals(2, ticks.get(1)[1]);
+  }
+
+  @Test
+  @DisplayName("the original ClickUp text is captured onto the imported issue")
+  void capturesOriginalText() {
+    String withText = """
+        {"tasks":[
+          {"id":"CU-9001","name":"Blog – Import – Original text",
+           "status":{"status":"planned"},"tags":[],
+           "text_content":"This is the original body from ClickUp.",
+           "description":"# markdown ignored when text_content is present"}
+        ]}""";
+    service.transformAndLoad(withText, repo);
+
+    Issue issue = repo.findIssueByOrigin("CU-9001").orElseThrow();
+    assertNotNull(issue.description(), "the original text must be captured");
+    assertEquals("This is the original body from ClickUp.", issue.description());
   }
 
   @Test

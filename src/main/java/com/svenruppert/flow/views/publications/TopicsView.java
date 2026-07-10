@@ -43,8 +43,11 @@ import com.vaadin.flow.component.grid.dnd.GridDropLocation;
 import com.vaadin.flow.component.grid.dnd.GridDropMode;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H3;
+import com.vaadin.flow.component.html.H4;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.markdown.Markdown;
+import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.FlexLayout;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
@@ -57,6 +60,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -76,6 +80,14 @@ public class TopicsView extends Composite<VerticalLayout> implements I18nSupport
   public static final String NAV = "themen";
 
   private static final long serialVersionUID = 1L;
+
+  /**
+   * A bare {@code http(s)} URL that is not already the target of a markdown link
+   * (not preceded by {@code (}, {@code <} or {@code ]}) and does not end on
+   * sentence punctuation.
+   */
+  private static final Pattern BARE_URL =
+      Pattern.compile("(?<![(<\\]])(https?://[^\\s<>()\\[\\]]*[^\\s<>()\\[\\].,;:!?'\"])");
 
   private final transient PublicationsRepository repo = PublicationsProvider.repository();
 
@@ -107,8 +119,7 @@ public class TopicsView extends Composite<VerticalLayout> implements I18nSupport
 
     root.add(new PageHeader(
         tr("themen.heading", "Topic workspace"),
-        tr("themen.subtitle", "Issues, their parts and tags — the entry into the backlog."))
-        .withActions(primary(tr("themen.new", "+ Topic"), e -> openCreateIssueDialog())));
+        tr("themen.subtitle", "Issues, their parts and tags — the entry into the backlog.")));
 
     searchField.addValueChangeListener(e -> {
       PublicationsFilter.current().setTitleQuery(e.getValue());
@@ -134,7 +145,17 @@ public class TopicsView extends Composite<VerticalLayout> implements I18nSupport
     grid.setSizeFull();
     grid.asSingleSelect().addValueChangeListener(e -> showDetail(e.getValue()));
 
-    VerticalLayout master = new VerticalLayout(filterBar, grid);
+    // New-topic action lives directly above the list it creates into (P), not in
+    // the far-right page-header actions.
+    Button newTopic = new Button(tr("themen.new", "New topic"), VaadinIcon.PLUS.create(),
+        e -> openCreateIssueDialog());
+    newTopic.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+    HorizontalLayout masterToolbar = new HorizontalLayout(newTopic);
+    masterToolbar.setWidthFull();
+    masterToolbar.setPadding(false);
+    masterToolbar.getStyle().set("padding", "var(--lumo-space-s) 0");
+
+    VerticalLayout master = new VerticalLayout(masterToolbar, filterBar, grid);
     master.setPadding(false);
     master.setSpacing(false);
     master.setSizeFull();
@@ -211,16 +232,16 @@ public class TopicsView extends Composite<VerticalLayout> implements I18nSupport
       detail.add(origin, new Div());
     }
 
-    // Original body (e.g. the imported ClickUp task text), when present.
+    // Original body (e.g. the imported ClickUp task text), when present. Rendered
+    // as markdown so links become clickable (N); bare URLs are auto-linked.
     if (issue.description() != null && !issue.description().isBlank()) {
       Span originalLabel = new Span(tr("themen.detail.original", "Original text"));
       originalLabel.getStyle().set("font-weight", "600");
-      Div body = new Div();
-      body.setText(issue.description());
-      body.getStyle().set("white-space", "pre-wrap");
+      Markdown rendered = new Markdown(linkify(issue.description()));
+      Div body = new Div(rendered);
       body.getStyle().set("background", "var(--lumo-contrast-5pct)");
       body.getStyle().set("border-radius", "var(--lumo-border-radius-m)");
-      body.getStyle().set("padding", "var(--lumo-space-s)");
+      body.getStyle().set("padding", "0 var(--lumo-space-s)");
       body.getStyle().set("max-height", "240px");
       body.getStyle().set("overflow-y", "auto");
       body.getStyle().set("font-size", "var(--lumo-font-size-s)");
@@ -247,6 +268,37 @@ public class TopicsView extends Composite<VerticalLayout> implements I18nSupport
     tagsSection.getStyle().set("margin", "var(--lumo-space-m) 0");
     detail.add(tagsSection);
 
+    // Parts section (O) — a labelled, explained block so the "add part" flow is
+    // intuitive: what a part is, an empty state when there are none, and a clear
+    // primary action that gives feedback and jumps into the new part's editor.
+    H4 partsHeading = new H4(tr("themen.parts.heading", "Parts"));
+    partsHeading.getStyle().set("margin", "var(--lumo-space-m) 0 0");
+    Span partsHint = new Span(tr("themen.parts.hint",
+        "A part is a language-neutral unit of this topic. Add a part, then open it to "
+            + "write its language versions and plan publications."));
+    partsHint.getStyle().set("color", "var(--lumo-secondary-text-color)");
+    partsHint.getStyle().set("font-size", "var(--lumo-font-size-s)");
+    partsHint.getStyle().set("display", "block");
+    detail.add(partsHeading, partsHint);
+
+    if (issue.parts().isEmpty()) {
+      detail.add(new EmptyState(VaadinIcon.LIST,
+          tr("themen.parts.empty.title", "No parts yet"),
+          tr("themen.parts.empty.body",
+              "Split this topic into one or more parts to plan and write it.")));
+    } else {
+      detail.add(partsGrid(issue));
+    }
+
+    Button addPart = new Button(tr("themen.part.add", "+ Add part"),
+        VaadinIcon.PLUS.create(), e -> addPart(issue));
+    addPart.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+    addPart.getElement().setAttribute("title",
+        tr("themen.part.add.tooltip", "Create a new part and open its editor"));
+    detail.add(addPart);
+  }
+
+  private Grid<Part> partsGrid(Issue issue) {
     Grid<Part> parts = new Grid<>(Part.class, false);
     parts.addColumn(p -> "#" + p.position()).setHeader("#").setAutoWidth(true);
     parts.addColumn(p -> tr("themen.part", "Part {0}", p.position())).setHeader(tr("themen.col.part", "Part")).setFlexGrow(1);
@@ -256,6 +308,8 @@ public class TopicsView extends Composite<VerticalLayout> implements I18nSupport
     parts.addComponentColumn(this::partActions).setAutoWidth(true);
     parts.setItems(issue.partsInOrder());
     parts.setAllRowsVisible(true);
+    // Double-click a part row to open its editor (consistent with the board).
+    parts.addItemDoubleClickListener(e -> navigate("teil/" + e.getItem().id()));
     // F5 — reorder parts by dragging a row onto another (P0003 ordering).
     parts.setId("parts-grid");
     parts.setRowsDraggable(true);
@@ -274,16 +328,17 @@ public class TopicsView extends Composite<VerticalLayout> implements I18nSupport
         refreshMaster();
       }
     });
-    detail.add(parts);
+    return parts;
+  }
 
-    Button addPart = new Button(tr("themen.part.add", "+ Add part"), e -> {
-      issue.addPart();
-      repo.persist();
-      showDetail(issue);
-      refreshMaster();
-    });
-    addPart.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-    detail.add(addPart);
+  /** Adds a part, confirms it, and opens its editor — the natural next step (O). */
+  private void addPart(Issue issue) {
+    Part created = issue.addPart();
+    repo.persist();
+    refreshMaster();
+    Notification.show(tr("themen.part.added",
+        "Part {0} added — opening it to add language versions.", created.position()));
+    navigate("teil/" + created.id());
   }
 
   private HorizontalLayout partActions(Part part) {
@@ -381,6 +436,19 @@ public class TopicsView extends Composite<VerticalLayout> implements I18nSupport
       next.add(after ? idx + 1 : idx, dragged);
     }
     return next;
+  }
+
+  /**
+   * Wraps bare {@code http(s)} URLs in markdown autolink brackets so the
+   * {@link Markdown} renderer turns them into clickable links, leaving URLs that
+   * are already part of a markdown link untouched. Pure and public so the
+   * linkification is unit-testable.
+   */
+  public static String linkify(String text) {
+    if (text == null) {
+      return "";
+    }
+    return BARE_URL.matcher(text).replaceAll("<$1>");
   }
 
   private List<Tag> allTags() {

@@ -32,6 +32,8 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.dnd.GridDropMode;
 import com.vaadin.flow.component.html.H3;
+import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.markdown.Markdown;
 import junit.com.svenruppert.flow.TestSupport;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -109,14 +111,60 @@ class TopicsViewBrowserlessTest extends BrowserlessTest {
   }
 
   @Test
-  @DisplayName("toolbar has a '+ Topic' button")
+  @DisplayName("linkify wraps bare URLs, leaves existing markdown links untouched (N)")
+  void linkifyWrapsBareUrls() {
+    assertEquals("see <https://vaadin.com> now",
+        TopicsView.linkify("see https://vaadin.com now"));
+    assertEquals("[docs](https://vaadin.com/docs)",
+        TopicsView.linkify("[docs](https://vaadin.com/docs)"),
+        "an existing markdown link must not be double-wrapped");
+    assertEquals("go to <https://vaadin.com>.",
+        TopicsView.linkify("go to https://vaadin.com."),
+        "trailing sentence punctuation stays outside the link");
+    assertEquals("", TopicsView.linkify(null));
+  }
+
+  @Test
+  @DisplayName("a topic whose text has a URL renders it via the Markdown component (N)")
+  @SuppressWarnings("unchecked")
+  void detailRendersMarkdownForLinks() {
+    Issue issue = PublicationsProvider.repository().createIssue("Linky");
+    issue.setDescription("Read https://vaadin.com for details.");
+    PublicationsProvider.repository().persist();
+    UI.getCurrent().navigate(TopicsView.class);
+    Grid<Issue> grid = (Grid<Issue>) $view(Grid.class).first();
+    grid.select(issue);
+    assertTrue($view(Markdown.class).all().size() >= 1,
+        "the original text must render via the Markdown component so links are clickable");
+  }
+
+  @Test
+  @DisplayName("a topic with no parts shows an empty-state + hint and a clear Add part action (O)")
+  @SuppressWarnings("unchecked")
+  void partsEmptyStateAndHint() {
+    Issue issue = PublicationsProvider.repository().createIssue("Empty parts topic");
+    UI.getCurrent().navigate(TopicsView.class);
+    Grid<Issue> grid = (Grid<Issue>) $view(Grid.class).first();
+    grid.select(issue);
+
+    assertTrue($view(H3.class).all().stream().anyMatch(h -> "No parts yet".equals(h.getText())),
+        "an empty-state must explain there are no parts");
+    assertTrue($view(Span.class).all().stream()
+            .anyMatch(s -> s.getText() != null && s.getText().startsWith("A part is a language-neutral")),
+        "a hint must explain what a part is");
+    assertTrue($view(Button.class).all().stream().map(Button::getText).anyMatch("+ Add part"::equals),
+        "a clear Add part action must be present");
+  }
+
+  @Test
+  @DisplayName("a 'New topic' action sits above the list (P)")
   void createTopicButtonPresent() {
     UI.getCurrent().navigate(TopicsView.class);
     assertTrue($view(Button.class).all().stream()
             .map(Button::getText)
             .collect(Collectors.toList())
-            .contains("+ Topic"),
-        "the header must offer a '+ Topic' action");
+            .contains("New topic"),
+        "the topic list toolbar must offer a 'New topic' action");
   }
 
   @Test
@@ -157,9 +205,9 @@ class TopicsViewBrowserlessTest extends BrowserlessTest {
     assertTrue($view(com.vaadin.flow.component.html.H3.class).all().stream()
             .anyMatch(h -> "After edit".equals(h.getText())),
         "the detail must show the edited title");
-    assertTrue($view(com.vaadin.flow.component.html.Div.class).all().stream()
-            .anyMatch(d -> "Freshly edited text.".equals(d.getText())),
-        "the detail must show the edited original text");
+    assertTrue($view(Markdown.class).all().stream()
+            .anyMatch(m -> "Freshly edited text.".equals(m.getContent())),
+        "the detail must render the edited original text as markdown");
   }
 
   @Test
@@ -174,9 +222,9 @@ class TopicsViewBrowserlessTest extends BrowserlessTest {
     Grid<Issue> grid = (Grid<Issue>) $view(Grid.class).first();
     grid.select(described);
 
-    assertTrue($view(com.vaadin.flow.component.html.Div.class).all().stream()
-            .anyMatch(d -> "The original ClickUp body text.".equals(d.getText())),
-        "the detail panel must render the selected topic's original text");
+    assertTrue($view(Markdown.class).all().stream()
+            .anyMatch(m -> "The original ClickUp body text.".equals(m.getContent())),
+        "the detail panel must render the selected topic's original text as markdown");
   }
 
   @Test

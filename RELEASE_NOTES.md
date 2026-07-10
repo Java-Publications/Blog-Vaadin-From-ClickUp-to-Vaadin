@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+## 00.34.00 — 2026-07-10
+
+Topic workspace usability.
+
+- **Clickable links**: a topic's original text renders as markdown, so markdown
+  links and bare URLs in the text become clickable.
+- **Comprehensible "add part" flow**: the parts area gains a heading, a one-line
+  explanation of what a part is, an empty-state when there are none, and a clear
+  primary "+ Add part" action that confirms and opens the new part's editor;
+  part rows are double-click-to-open.
+- **Relocated "New topic" action**: moved from the far-right page header into a
+  toolbar directly above the topic list, relabelled "New topic" with a plus icon.
+
 ## 00.33.00 — 2026-07-09
 
 Topic/part editing overhaul — a reusable editor shared by the topic workspace and

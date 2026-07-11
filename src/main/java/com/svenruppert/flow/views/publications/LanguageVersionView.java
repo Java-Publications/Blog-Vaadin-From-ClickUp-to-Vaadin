@@ -20,6 +20,7 @@ import com.svenruppert.flow.i18n.I18nSupport;
 import com.svenruppert.flow.security.roles.AuthorizationRole;
 import com.svenruppert.flow.security.roles.VisibleFor;
 import com.svenruppert.flow.views.MainLayout;
+import com.svenruppert.flow.views.ui.BackButton;
 import com.svenruppert.flow.views.ui.EmptyState;
 import com.svenruppert.flow.views.ui.PageHeader;
 import com.svenruppert.publications.model.Language;
@@ -36,6 +37,8 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.html.H4;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
@@ -106,6 +109,8 @@ public class LanguageVersionView extends Composite<VerticalLayout>
           tr("fassung.notfound.body", "Open a part from the topic workspace.")));
       return;
     }
+
+    body.add(BackButton.to(tr("fassung.back", "Back to topic workspace"), TopicsView.NAV));
 
     String prefix = part.issue() != null ? part.issue().title() : "";
     body.add(new PageHeader(
@@ -184,23 +189,41 @@ public class LanguageVersionView extends Composite<VerticalLayout>
     fields.setFlexGrow(1, manuscript);
     editor.add(fields);
 
-    Grid<Publication> grid = new Grid<>(Publication.class, false);
-    grid.addColumn(v -> v.place().name()).setHeader(tr("fassung.col.place", "Place")).setFlexGrow(1);
-    grid.addComponentColumn(v -> PublicationUi.acquisition(v.acquisitionStatus()))
-        .setHeader(tr("fassung.col.acquisition", "Acquisition")).setAutoWidth(true);
-    grid.addComponentColumn(v -> PublicationUi.production(v.productionStatus()))
-        .setHeader(tr("fassung.col.production", "Production")).setAutoWidth(true);
-    grid.addColumn(v -> v.date() == null ? "" : v.date().toString())
-        .setHeader(tr("fassung.col.date", "Date")).setAutoWidth(true);
-    grid.addComponentColumn(v -> {
-      Button open = new Button(tr("fassung.open", "Open"),
-          e -> UI.getCurrent().navigate("veroeffentlichung/" + v.id()));
-      open.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
-      return open;
-    }).setAutoWidth(true);
-    grid.setItems(version.publications());
-    grid.setAllRowsVisible(true);
-    editor.add(grid);
+    // Next-step guidance (Q): after the manuscript, the workflow continues by
+    // planning where this version gets published.
+    H4 pubHeading = new H4(tr("fassung.pub.heading", "Publications of this version"));
+    pubHeading.getStyle().set("margin", "var(--lumo-space-m) 0 0");
+    Span pubHint = new Span(tr("fassung.pub.hint",
+        "Next step: plan where this version gets published. Each publication then "
+            + "tracks its own acquisition and production lifecycle."));
+    pubHint.getStyle().set("color", "var(--lumo-secondary-text-color)");
+    pubHint.getStyle().set("font-size", "var(--lumo-font-size-s)");
+    pubHint.getStyle().set("display", "block");
+    editor.add(pubHeading, pubHint);
+
+    if (version.publications().isEmpty()) {
+      editor.add(new EmptyState(VaadinIcon.NEWSPAPER,
+          tr("fassung.pub.empty.title", "Not published anywhere yet"),
+          tr("fassung.pub.empty.body", "Pick a place below and plan the first publication.")));
+    } else {
+      Grid<Publication> grid = new Grid<>(Publication.class, false);
+      grid.addColumn(v -> v.place().name()).setHeader(tr("fassung.col.place", "Place")).setFlexGrow(1);
+      grid.addComponentColumn(v -> PublicationUi.acquisition(v.acquisitionStatus()))
+          .setHeader(tr("fassung.col.acquisition", "Acquisition")).setAutoWidth(true);
+      grid.addComponentColumn(v -> PublicationUi.production(v.productionStatus()))
+          .setHeader(tr("fassung.col.production", "Production")).setAutoWidth(true);
+      grid.addColumn(v -> v.date() == null ? "" : v.date().toString())
+          .setHeader(tr("fassung.col.date", "Date")).setAutoWidth(true);
+      grid.addComponentColumn(v -> {
+        Button open = new Button(tr("fassung.open", "Open"),
+            e -> UI.getCurrent().navigate("veroeffentlichung/" + v.id()));
+        open.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
+        return open;
+      }).setAutoWidth(true);
+      grid.setItems(version.publications());
+      grid.setAllRowsVisible(true);
+      editor.add(grid);
+    }
 
     editor.add(planBar(version));
   }

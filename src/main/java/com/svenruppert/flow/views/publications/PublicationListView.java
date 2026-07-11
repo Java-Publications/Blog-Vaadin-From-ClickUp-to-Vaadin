@@ -74,8 +74,10 @@ public class PublicationListView extends Composite<VerticalLayout>
     filterBar.onClear(this::refresh);
     root.add(filterBar);
 
+    grid.addColumn(v -> PublicationUi.blogPost(repo.partOf(v.version()).orElse(null)))
+        .setHeader(tr("liste.col.blogpost", "Blog post")).setFlexGrow(1);
     grid.addColumn(v -> v.version().language().name()).setHeader(tr("liste.col.lang", "Language")).setAutoWidth(true);
-    grid.addColumn(v -> v.place().name()).setHeader(tr("liste.col.place", "Place")).setFlexGrow(1);
+    grid.addColumn(v -> v.place().name()).setHeader(tr("liste.col.place", "Place")).setAutoWidth(true);
     grid.addComponentColumn(v -> PublicationUi.acquisition(v.acquisitionStatus()))
         .setHeader(tr("liste.col.acquisition", "Acquisition")).setAutoWidth(true);
     grid.addComponentColumn(v -> PublicationUi.production(v.productionStatus()))

@@ -16,8 +16,10 @@
 
 package com.svenruppert.flow.views.publications;
 
+import com.svenruppert.flow.i18n.I18n;
 import com.svenruppert.publications.model.AcquisitionStatus;
 import com.svenruppert.publications.model.EditorialState;
+import com.svenruppert.publications.model.Part;
 import com.svenruppert.publications.model.ProductionStatus;
 import com.vaadin.flow.component.html.Span;
 
@@ -46,6 +48,19 @@ public final class PublicationUi {
   /** Neutral tag badge. */
   public static Span tag(String name) {
     return badge(name, "contrast");
+  }
+
+  /**
+   * Human-readable "blog post" label for a {@link Part} — the owning topic title
+   * plus the part number, e.g. {@code "Blog – Navigation · Part 2"}. Used to tell
+   * the user which post a publication or version belongs to. {@code null}-safe.
+   */
+  public static String blogPost(Part part) {
+    if (part == null) {
+      return I18n.tr("pub.unknownPost", "(unknown topic)");
+    }
+    String topic = part.issue() != null ? part.issue().title() : "?";
+    return topic + " · " + I18n.tr("themen.part", "Part {0}", part.position());
   }
 
   public static Span editorialState(EditorialState state) {

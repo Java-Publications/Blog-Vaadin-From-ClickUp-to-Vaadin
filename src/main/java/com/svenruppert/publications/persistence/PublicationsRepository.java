@@ -107,6 +107,21 @@ public final class PublicationsRepository {
     return root.publicationPlaces().stream().filter(o -> o.id().equals(id)).findFirst();
   }
 
+  /**
+   * The {@link Part} that owns {@code version} — walks the graph, since a
+   * {@link LanguageVersion} keeps no back-reference. Lets a publication resolve
+   * the blog post (topic + part) it belongs to.
+   */
+  public Optional<Part> partOf(LanguageVersion version) {
+    if (version == null) {
+      return Optional.empty();
+    }
+    return root.issues().stream()
+        .flatMap(i -> i.parts().stream())
+        .filter(p -> p.languageVersions().contains(version))
+        .findFirst();
+  }
+
   /** Places whose supported languages include {@code language} (language rule). */
   public List<PublicationPlace> placesFor(Language language) {
     return root.publicationPlaces().stream()

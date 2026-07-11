@@ -111,6 +111,22 @@ class PublicationViewBrowserlessTest extends BrowserlessTest {
   }
 
   @Test
+  @DisplayName("the header names which blog post it is, and a back button leads to the version (R, S)")
+  void showsBlogPostAndBackButton() {
+    UI.getCurrent().navigate(PublicationView.class, vId.toString());
+
+    List<String> spanTexts = $view(Span.class).all().stream()
+        .map(Span::getText).collect(Collectors.toList());
+    assertTrue(spanTexts.contains("Blog post: Blog – Navigation – Coupled navigation · Part 1"),
+        "the header must name the owning blog post (topic + part)");
+
+    assertTrue($view(com.vaadin.flow.component.button.Button.class).all().stream()
+            .map(com.vaadin.flow.component.button.Button::getText)
+            .anyMatch("Back to the language version"::equals),
+        "a back button must lead to the language version (S)");
+  }
+
+  @Test
   @DisplayName("unknown id → empty state")
   void notFound() {
     UI.getCurrent().navigate(PublicationView.class, UUID.randomUUID().toString());

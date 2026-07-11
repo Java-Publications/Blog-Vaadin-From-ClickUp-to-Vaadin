@@ -29,7 +29,6 @@ import com.svenruppert.publications.persistence.PublicationsRepository;
 import com.vaadin.browserless.BrowserlessTest;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H3;
 import junit.com.svenruppert.flow.TestSupport;
@@ -41,6 +40,7 @@ import org.junit.jupiter.api.Test;
 import java.util.EnumSet;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -86,17 +86,22 @@ class LanguageVersionViewBrowserlessTest extends BrowserlessTest {
   }
 
   @Test
-  @DisplayName("renders the editor for a valid part id — header, publications grid, plan button")
+  @DisplayName("renders the editor: header, next-step guidance/empty-state, plan + back buttons")
   void rendersEditorForValidPart() {
     UI.getCurrent().navigate(LanguageVersionView.class, partId.toString());
     H1 heading = $view(H1.class).first();
     assertEquals("Language versions", heading.getText());
-    Grid<?> grid = $view(Grid.class).first();
-    assertEquals(0, grid.getListDataView().getItemCount());
-    assertTrue($view(Button.class).all().stream()
-            .map(Button::getText).collect(Collectors.toList())
-            .contains("Plan publication"),
+
+    List<String> buttons = $view(Button.class).all().stream()
+        .map(Button::getText).collect(Collectors.toList());
+    assertTrue(buttons.contains("Plan publication"),
         "editor must offer the language-rule-guarded plan action");
+    assertTrue(buttons.contains("Back to topic workspace"),
+        "editor must offer a back button to the topic workspace (S)");
+    // With no publications yet, an empty-state guides to the next step (Q).
+    assertTrue($view(H3.class).all().stream()
+            .anyMatch(h -> "Not published anywhere yet".equals(h.getText())),
+        "the next-step empty-state must guide the user to plan a publication");
   }
 
   @Test

@@ -21,11 +21,13 @@ import com.svenruppert.flow.security.model.AppUser;
 import com.svenruppert.flow.security.roles.AuthorizationRole;
 import com.svenruppert.flow.security.roles.VisibleFor;
 import com.svenruppert.flow.views.MainLayout;
+import com.svenruppert.flow.views.ui.BackButton;
 import com.svenruppert.flow.views.ui.EmptyState;
 import com.svenruppert.flow.views.ui.PageHeader;
 import com.svenruppert.flow.views.ui.TemplateBrand;
 import com.svenruppert.jsentinel.authorization.api.SubjectStores;
 import com.svenruppert.publications.model.AcquisitionStatus;
+import com.svenruppert.publications.model.Part;
 import com.svenruppert.publications.model.ProductionStatus;
 import com.svenruppert.publications.model.Publication;
 import com.svenruppert.publications.model.PublicationPlace;
@@ -107,11 +109,17 @@ public class PublicationView extends Composite<VerticalLayout>
       return;
     }
 
+    Part owningPart = repo.partOf(publication.version()).orElse(null);
+    if (owningPart != null) {
+      body.add(BackButton.to(tr("pub.back", "Back to the language version"),
+          "teil/" + owningPart.id()));
+    }
+
     body.add(new PageHeader(
         tr("pub.heading", "Publication"),
         tr("pub.subtitle", "Two orthogonal lifecycles side by side.")));
 
-    body.add(header());
+    body.add(header(owningPart));
 
     FlexLayout columns = new FlexLayout();
     columns.setWidthFull();
@@ -123,10 +131,17 @@ public class PublicationView extends Composite<VerticalLayout>
     body.add(secondUse());
   }
 
-  private Div header() {
+  private Div header(Part owningPart) {
     Div card = new Div();
     card.addClassName(TemplateBrand.CSS_CARD);
     card.getStyle().set("padding", "var(--lumo-space-m)");
+
+    // Which blog post this publication belongs to (R).
+    Span blogPost = new Span(tr("pub.blogpost", "Blog post: {0}",
+        PublicationUi.blogPost(owningPart)));
+    blogPost.getStyle().set("font-weight", "600");
+    blogPost.getStyle().set("display", "block");
+    blogPost.getStyle().set("margin-bottom", "var(--lumo-space-xs)");
 
     Span version = new Span(tr("pub.version", "Version") + ": "
         + publication.version().language().name() + " · "
@@ -159,7 +174,7 @@ public class PublicationView extends Composite<VerticalLayout>
     HorizontalLayout fields = new HorizontalLayout(date, link, client);
     fields.setWidthFull();
     fields.setFlexGrow(1, link);
-    card.add(meta, fields);
+    card.add(blogPost, meta, fields);
     return card;
   }
 

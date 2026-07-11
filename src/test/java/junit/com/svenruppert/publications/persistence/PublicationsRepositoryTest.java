@@ -91,4 +91,18 @@ class PublicationsRepositoryTest {
     assertTrue(repo.findPublication(v.id()).isPresent());
     assertEquals(1, repo.allPublications().size());
   }
+
+  @Test
+  void partOfResolvesTheOwningPartOfAVersion() {
+    Issue issue = repo.createIssue("Topic");
+    var part = issue.addPart();
+    var version = part.addLanguageVersion(Language.GERMAN);
+    repo.persist();
+
+    assertTrue(repo.partOf(version).isPresent(), "the owning part must be found");
+    assertEquals(part.id(), repo.partOf(version).orElseThrow().id());
+    assertTrue(repo.partOf(new com.svenruppert.publications.model.LanguageVersion(Language.ENGLISH))
+        .isEmpty(), "an unattached version resolves to no part");
+    assertTrue(repo.partOf(null).isEmpty(), "null is tolerated");
+  }
 }

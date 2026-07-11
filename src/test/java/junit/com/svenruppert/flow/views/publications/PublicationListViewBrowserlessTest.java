@@ -76,13 +76,22 @@ class PublicationListViewBrowserlessTest extends BrowserlessTest {
   }
 
   @Test
-  @DisplayName("NAV is 'veroeffentlichungen' and the grid lists the publication")
+  @DisplayName("NAV is 'veroeffentlichungen'; the grid lists the publication with a blog-post column (R)")
+  @SuppressWarnings("unchecked")
   void listsPublications() {
     assertEquals("veroeffentlichungen", PublicationListView.NAV);
     UI.getCurrent().navigate(PublicationListView.class);
     assertEquals("Publications", $view(H1.class).first().getText());
-    Grid<?> grid = $view(Grid.class).first();
-    assertEquals(6, grid.getColumns().size());
+    Grid<com.svenruppert.publications.model.Publication> grid =
+        (Grid<com.svenruppert.publications.model.Publication>) $view(Grid.class).first();
+    assertEquals(7, grid.getColumns().size(), "blog-post column was added");
     assertEquals(1, grid.getListDataView().getItemCount());
+
+    // The blog-post column resolves the owning topic + part (R).
+    com.svenruppert.publications.model.Publication pub =
+        grid.getListDataView().getItems().findFirst().orElseThrow();
+    String blogPost = com.svenruppert.flow.views.publications.PublicationUi.blogPost(
+        PublicationsProvider.repository().partOf(pub.version()).orElse(null));
+    assertEquals("Blog – Navigation – Coupled navigation · Part 1", blogPost);
   }
 }

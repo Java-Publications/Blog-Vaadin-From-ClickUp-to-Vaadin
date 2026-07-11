@@ -20,6 +20,7 @@ import com.svenruppert.flow.i18n.I18nSupport;
 import com.svenruppert.flow.security.roles.AuthorizationRole;
 import com.svenruppert.flow.security.roles.VisibleFor;
 import com.svenruppert.flow.views.MainLayout;
+import com.svenruppert.flow.views.ui.BackButton;
 import com.svenruppert.flow.views.ui.EmptyState;
 import com.svenruppert.flow.views.ui.PageHeader;
 import com.svenruppert.publications.model.StatusChange;
@@ -82,6 +83,15 @@ public class HistoryView extends Composite<VerticalLayout>
     if (id.isEmpty()) {
       showEmpty();
       return;
+    }
+    // Back to where the history was opened from (S): a part or a publication.
+    String backRoute = switch (kind) {
+      case "teil" -> "teil/" + parts[1];
+      case "akquise", "herstellung" -> "veroeffentlichung/" + parts[1];
+      default -> null;
+    };
+    if (backRoute != null) {
+      body.add(BackButton.to(tr("verlauf.back", "Back"), backRoute));
     }
     switch (kind) {
       case "teil" -> repo.findPart(id.get())

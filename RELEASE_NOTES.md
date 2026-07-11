@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 00.35.00 — 2026-07-11
+
+Publication-flow navigation & clarity.
+
+- **Next-step guidance after a language version**: the language-version editor
+  adds a "Publications of this version" heading, a one-line hint that the next
+  step is to plan a publication, and an empty-state when none exist yet.
+- **Blog-post context on publications**: a publication now names which blog post
+  (topic + part) it belongs to — prominently in the publication view header and
+  as a "Blog post" column in the publications list (resolved via a new
+  `PublicationsRepository.partOf(version)`).
+- **Back buttons on the sub-pages**: the language-version editor, publication
+  view and history each gain a back button, so stepping back no longer requires
+  the main navigation.
+
 ## 00.34.00 — 2026-07-10
 
 Topic workspace usability.

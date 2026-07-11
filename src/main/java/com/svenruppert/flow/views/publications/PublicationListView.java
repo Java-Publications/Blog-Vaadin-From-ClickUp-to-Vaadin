@@ -74,22 +74,26 @@ public class PublicationListView extends Composite<VerticalLayout>
     filterBar.onClear(this::refresh);
     root.add(filterBar);
 
+    // The blog-post column carries the long text and takes the remaining width;
+    // the others are narrow and fixed. Every column is user-resizable.
     grid.addColumn(v -> PublicationUi.blogPost(repo.partOf(v.version()).orElse(null)))
-        .setHeader(tr("liste.col.blogpost", "Blog post")).setFlexGrow(1);
-    grid.addColumn(v -> v.version().language().name()).setHeader(tr("liste.col.lang", "Language")).setAutoWidth(true);
-    grid.addColumn(v -> v.place().name()).setHeader(tr("liste.col.place", "Place")).setAutoWidth(true);
+        .setHeader(tr("liste.col.blogpost", "Blog post")).setFlexGrow(1).setResizable(true);
+    grid.addColumn(v -> v.version().language().name())
+        .setHeader(tr("liste.col.lang", "Language")).setWidth("8em").setFlexGrow(0).setResizable(true);
+    grid.addColumn(v -> v.place().name())
+        .setHeader(tr("liste.col.place", "Place")).setWidth("12em").setFlexGrow(0).setResizable(true);
     grid.addComponentColumn(v -> PublicationUi.acquisition(v.acquisitionStatus()))
-        .setHeader(tr("liste.col.acquisition", "Acquisition")).setAutoWidth(true);
+        .setHeader(tr("liste.col.acquisition", "Acquisition")).setWidth("9em").setFlexGrow(0).setResizable(true);
     grid.addComponentColumn(v -> PublicationUi.production(v.productionStatus()))
-        .setHeader(tr("liste.col.production", "Production")).setAutoWidth(true);
+        .setHeader(tr("liste.col.production", "Production")).setWidth("9em").setFlexGrow(0).setResizable(true);
     grid.addColumn(v -> v.date() == null ? "" : v.date().toString())
-        .setHeader(tr("liste.col.date", "Date")).setAutoWidth(true);
+        .setHeader(tr("liste.col.date", "Date")).setWidth("8em").setFlexGrow(0).setResizable(true);
     grid.addComponentColumn(v -> {
       Button open = new Button(tr("liste.open", "Open"),
           e -> UI.getCurrent().navigate(PublicationView.NAV + "/" + v.id()));
       open.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
       return open;
-    }).setAutoWidth(true);
+    }).setHeader("").setWidth("6em").setFlexGrow(0);
     grid.setSizeFull();
     root.add(grid);
     root.setFlexGrow(1, grid);

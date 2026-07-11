@@ -43,6 +43,7 @@ import java.util.Locale;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @DisplayName("PublicationListView — overview grid")
 class PublicationListViewBrowserlessTest extends BrowserlessTest {
@@ -86,6 +87,10 @@ class PublicationListViewBrowserlessTest extends BrowserlessTest {
         (Grid<com.svenruppert.publications.model.Publication>) $view(Grid.class).first();
     assertEquals(7, grid.getColumns().size(), "blog-post column was added");
     assertEquals(1, grid.getListDataView().getItemCount());
+
+    // The data columns are user-resizable (T); the blog-post column stays flexible.
+    assertTrue(grid.getColumns().get(0).isResizable(), "the blog-post column is resizable");
+    assertTrue(grid.getColumns().get(1).isResizable(), "the language column is resizable");
 
     // The blog-post column resolves the owning topic + part (R).
     com.svenruppert.publications.model.Publication pub =

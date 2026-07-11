@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 00.37.00 — 2026-07-11
+
+- **Complex search for the publications table**: the publications list gains a
+  full filter bar — a free-text search across blog post / place / language /
+  client / link, plus filters for language, place, acquisition status, production
+  status, and a date range (from/to), with a one-click "Clear filters".
+
 ## 00.36.00 — 2026-07-11
 
 - **Resizable, right-sized publication columns**: every column in the publications

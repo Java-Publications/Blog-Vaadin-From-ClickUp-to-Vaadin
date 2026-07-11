@@ -31,6 +31,7 @@ import com.svenruppert.publications.persistence.PublicationsRepository;
 import com.vaadin.browserless.BrowserlessTest;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.component.html.H1;
 import junit.com.svenruppert.flow.TestSupport;
 import org.junit.jupiter.api.AfterEach;
@@ -98,5 +99,24 @@ class PublicationListViewBrowserlessTest extends BrowserlessTest {
     String blogPost = com.svenruppert.flow.views.publications.PublicationUi.blogPost(
         PublicationsProvider.repository().partOf(pub.version()).orElse(null));
     assertEquals("Blog – Navigation – Coupled navigation · Part 1", blogPost);
+  }
+
+  @Test
+  @DisplayName("the complex free-text search narrows the table (U)")
+  void searchNarrowsTable() {
+    UI.getCurrent().navigate(PublicationListView.class);
+    Grid<?> grid = $view(Grid.class).first();
+    assertEquals(1, grid.getListDataView().getItemCount());
+
+    // The only TextField on the view is the complex search field.
+    TextField search = $view(TextField.class).first();
+
+    search.setValue("Navigation");   // matches the seeded topic title via blog post
+    assertEquals(1, grid.getListDataView().getItemCount(),
+        "a matching term keeps the publication");
+
+    search.setValue("no-such-publication");
+    assertEquals(0, grid.getListDataView().getItemCount(),
+        "a non-matching term empties the table");
   }
 }

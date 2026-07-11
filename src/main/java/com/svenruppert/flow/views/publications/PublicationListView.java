@@ -22,7 +22,10 @@ import com.svenruppert.flow.security.roles.VisibleFor;
 import com.svenruppert.flow.views.MainLayout;
 import com.svenruppert.flow.views.ui.FilterBar;
 import com.svenruppert.flow.views.ui.PageHeader;
+import com.svenruppert.publications.model.AcquisitionStatus;
+import com.svenruppert.publications.model.Language;
 import com.svenruppert.publications.model.Publication;
+import com.svenruppert.publications.model.PublicationPlace;
 import com.svenruppert.publications.model.ProductionStatus;
 import com.svenruppert.publications.persistence.PublicationsProvider;
 import com.svenruppert.publications.persistence.PublicationsRepository;
@@ -31,11 +34,16 @@ import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.combobox.MultiSelectComboBox;
+import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.Route;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Overview of all {@link Publication}s (drawer entry point) with a filter over
@@ -54,11 +62,33 @@ public class PublicationListView extends Composite<VerticalLayout>
   private final transient PublicationsRepository repo = PublicationsProvider.repository();
   private final Grid<Publication> grid = new Grid<>(Publication.class, false);
   private final FilterBar filterBar = new FilterBar();
+
+  // Complex, multi-criteria search over the publications (U).
+  private final TextField search;
+  private final MultiSelectComboBox<Language> languageFilter;
+  private final MultiSelectComboBox<PublicationPlace> placeFilter;
+  private final ComboBox<AcquisitionStatus> acquisitionFilter;
   private final ComboBox<ProductionStatus> statusFilter;
+  private final DatePicker since;
+  private final DatePicker until;
 
   {
+    search = filterBar.addText(tr("liste.filter.search", "Search"),
+        tr("liste.filter.search.ph", "Blog post, place, language, client…"));
+    languageFilter = filterBar.addMultiSelect(tr("liste.filter.lang", "Language"),
+        List.of(Language.values()), tr("liste.filter.lang.ph", "Any language"));
+    languageFilter.setItemLabelGenerator(Language::name);
+    placeFilter = filterBar.addMultiSelect(tr("liste.filter.place", "Place"),
+        repo.publicationPlaces(), tr("liste.filter.place.ph", "Any place"));
+    placeFilter.setItemLabelGenerator(PublicationPlace::name);
+    acquisitionFilter = filterBar.addSingleSelect(tr("liste.filter.acquisition", "Acquisition"),
+        AcquisitionStatus.values(), tr("liste.filter.acquisition.ph", "Any status"));
     statusFilter = filterBar.addSingleSelect(tr("liste.filter.status", "Production"),
         ProductionStatus.values(), tr("liste.filter.status.ph", "Any status"));
+    since = filterBar.addDate(tr("liste.filter.since", "Date from"),
+        tr("liste.filter.since.ph", "from"));
+    until = filterBar.addDate(tr("liste.filter.until", "Date to"),
+        tr("liste.filter.until.ph", "to"));
   }
 
   public PublicationListView() {
@@ -70,7 +100,13 @@ public class PublicationListView extends Composite<VerticalLayout>
         tr("liste.heading", "Publications"),
         tr("liste.subtitle", "Every publication across all versions and places.")));
 
+    search.addValueChangeListener(e -> refresh());
+    languageFilter.addValueChangeListener(e -> refresh());
+    placeFilter.addValueChangeListener(e -> refresh());
+    acquisitionFilter.addValueChangeListener(e -> refresh());
     statusFilter.addValueChangeListener(e -> refresh());
+    since.addValueChangeListener(e -> refresh());
+    until.addValueChangeListener(e -> refresh());
     filterBar.onClear(this::refresh);
     root.add(filterBar);
 
@@ -102,11 +138,32 @@ public class PublicationListView extends Composite<VerticalLayout>
   }
 
   private void refresh() {
-    ProductionStatus wanted = statusFilter.getValue();
+    String needle = search.getValue() == null ? "" : search.getValue().strip().toLowerCase();
+    Set<Language> langs = languageFilter.getValue();
+    Set<PublicationPlace> places = placeFilter.getValue();
+    AcquisitionStatus acq = acquisitionFilter.getValue();
+    ProductionStatus prod = statusFilter.getValue();
+    LocalDate from = since.getValue();
+    LocalDate to = until.getValue();
+
     List<Publication> items = repo.allPublications().stream()
-        .filter(v -> wanted == null || v.productionStatus() == wanted)
+        .filter(v -> needle.isEmpty() || searchable(v).contains(needle))
+        .filter(v -> langs.isEmpty() || langs.contains(v.version().language()))
+        .filter(v -> places.isEmpty() || places.contains(v.place()))
+        .filter(v -> acq == null || v.acquisitionStatus() == acq)
+        .filter(v -> prod == null || v.productionStatus() == prod)
+        .filter(v -> from == null || (v.date() != null && !v.date().isBefore(from)))
+        .filter(v -> to == null || (v.date() != null && !v.date().isAfter(to)))
         .toList();
     grid.setItems(items);
     filterBar.setCount(items.size(), tr("liste.unit", "publications"));
+  }
+
+  /** The lower-cased text a free-text search matches against for one publication. */
+  private String searchable(Publication v) {
+    String post = PublicationUi.blogPost(repo.partOf(v.version()).orElse(null));
+    return (post + " " + v.place().name() + " " + v.version().language().name() + " "
+        + (v.client() == null ? "" : v.client()) + " "
+        + (v.link() == null ? "" : v.link())).toLowerCase();
   }
 }

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 00.36.00 — 2026-07-11
+
+- **Resizable, right-sized publication columns**: every column in the publications
+  list is user-resizable; the blog-post column keeps the flexible width while the
+  short columns (language, place, acquisition, production, date, action) get
+  narrow fixed widths.
+
 ## 00.35.00 — 2026-07-11
 
 Publication-flow navigation & clarity.

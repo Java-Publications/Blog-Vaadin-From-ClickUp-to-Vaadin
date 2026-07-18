@@ -31,6 +31,7 @@ import com.svenruppert.publications.model.Tag;
 import com.svenruppert.publications.persistence.PublicationsProvider;
 import com.svenruppert.publications.persistence.PublicationsRepository;
 import com.vaadin.flow.component.Composite;
+import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.combobox.MultiSelectComboBox;
 import com.vaadin.flow.component.dnd.DragSource;
 import com.vaadin.flow.component.dnd.DropTarget;
@@ -80,10 +81,14 @@ public class EditorialBoardView extends Composite<VerticalLayout> implements I18
   private final Tab tableTab = new Tab(tr("tafel.view.table", "Table"));
   private final Tabs viewTabs = new Tabs(boardTab, tableTab);
 
+  /** How multiple selected tags are combined (X). */
+  private enum TagMatch { ANY, ALL }
+
   // Complex search filters for the board (W).
   private final FilterBar filterBar = new FilterBar();
   private final TextField search;
   private final MultiSelectComboBox<Tag> tagFilter;
+  private final ComboBox<TagMatch> tagMatch;
   private final MultiSelectComboBox<EditorialState> stateFilter;
 
   /** The part currently being dragged; set on drag start, cleared on drag end/drop. */
@@ -95,6 +100,12 @@ public class EditorialBoardView extends Composite<VerticalLayout> implements I18
     tagFilter = filterBar.addMultiSelect(tr("tafel.filter.tags", "Tags"),
         allTags(), tr("tafel.filter.tags.ph", "Any tag"));
     tagFilter.setItemLabelGenerator(Tag::name);
+    tagMatch = filterBar.addSingleSelect(tr("tafel.filter.tagmatch", "Tag match"),
+        TagMatch.values(), tr("tafel.filter.tagmatch.ph", "Any (OR)"));
+    tagMatch.setItemLabelGenerator(m -> m == TagMatch.ALL
+        ? tr("tafel.filter.tagmatch.all", "All (AND)")
+        : tr("tafel.filter.tagmatch.any", "Any (OR)"));
+    tagMatch.setValue(TagMatch.ANY);
     stateFilter = filterBar.addMultiSelect(tr("tafel.filter.state", "State"),
         List.of(EditorialState.values()), tr("tafel.filter.state.ph", "Any state"));
     stateFilter.setItemLabelGenerator(EditorialState::name);
@@ -112,6 +123,7 @@ public class EditorialBoardView extends Composite<VerticalLayout> implements I18
 
     search.addValueChangeListener(e -> refresh());
     tagFilter.addValueChangeListener(e -> refresh());
+    tagMatch.addValueChangeListener(e -> refresh());
     stateFilter.addValueChangeListener(e -> refresh());
     filterBar.onClear(this::refresh);
     root.add(filterBar);
@@ -189,12 +201,26 @@ public class EditorialBoardView extends Composite<VerticalLayout> implements I18
     PublicationsFilter session = PublicationsFilter.current();
     String needle = search.getValue() == null ? "" : search.getValue().strip().toLowerCase();
     Set<Tag> wantedTags = tagFilter.getValue();
+    boolean requireAll = tagMatch.getValue() == TagMatch.ALL;
     return repo.issues().stream()
         .filter(session::matchesTitle)
         .filter(i -> needle.isEmpty() || i.title().toLowerCase().contains(needle))
-        .filter(i -> wantedTags.isEmpty() || i.tags().stream().anyMatch(wantedTags::contains))
+        .filter(i -> matchesTags(i.tags(), wantedTags, requireAll))
         .flatMap(i -> i.parts().stream())
         .toList();
+  }
+
+  /**
+   * Whether {@code issueTags} satisfies the {@code wanted} tag selection: with
+   * {@code requireAll} the issue must carry <em>all</em> selected tags (AND),
+   * otherwise <em>any</em> of them (OR). An empty selection always matches. Pure
+   * and public so the AND/OR semantics are unit-testable.
+   */
+  public static boolean matchesTags(Set<Tag> issueTags, Set<Tag> wanted, boolean requireAll) {
+    if (wanted.isEmpty()) {
+      return true;
+    }
+    return requireAll ? issueTags.containsAll(wanted) : issueTags.stream().anyMatch(wanted::contains);
   }
 
   /** All tags across the issues, ordered case-insensitively (for the tag filter). */

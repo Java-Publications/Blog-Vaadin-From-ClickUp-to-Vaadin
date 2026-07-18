@@ -21,6 +21,7 @@ import com.svenruppert.flow.security.roles.AuthorizationRole;
 import com.svenruppert.flow.views.publications.EditorialBoardView;
 import com.svenruppert.jsentinel.authorization.api.SubjectStores;
 import com.svenruppert.publications.model.EditorialState;
+import com.svenruppert.publications.model.Tag;
 import com.svenruppert.publications.model.Issue;
 import com.svenruppert.publications.model.Part;
 import com.svenruppert.publications.persistence.InMemoryPublicationsPersistence;
@@ -45,9 +46,12 @@ import org.junit.jupiter.api.Test;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @DisplayName("EditorialBoardView (V3) — board + table, drag&drop")
 class EditorialBoardViewBrowserlessTest extends BrowserlessTest {
@@ -191,6 +195,26 @@ class EditorialBoardViewBrowserlessTest extends BrowserlessTest {
             $view(com.vaadin.flow.component.combobox.MultiSelectComboBox.class).all().get(1);
     stateFilter.setValue(java.util.Set.of(EditorialState.IN_PROGRESS));
     assertEquals(1, columns(), "only the selected state's column remains");
+  }
+
+  @Test
+  @DisplayName("matchesTags applies OR (any) vs AND (all) semantics for the tag filter (X)")
+  void tagMatchAndOr() {
+    Tag java = new Tag("java");
+    Tag vaadin = new Tag("vaadin");
+    Tag security = new Tag("security");
+    Set<Tag> issueTags = Set.of(java, vaadin);        // the issue carries java + vaadin
+    Set<Tag> wanted = Set.of(java, security);         // filter wants java + security
+
+    // OR: the issue has at least one of them (java) → matches.
+    assertTrue(EditorialBoardView.matchesTags(issueTags, wanted, false));
+    // AND: the issue lacks 'security' → no match.
+    assertFalse(EditorialBoardView.matchesTags(issueTags, wanted, true));
+    // AND with a fully-contained selection → matches.
+    assertTrue(EditorialBoardView.matchesTags(issueTags, Set.of(java, vaadin), true));
+    // An empty selection always matches, either mode.
+    assertTrue(EditorialBoardView.matchesTags(issueTags, Set.of(), true));
+    assertTrue(EditorialBoardView.matchesTags(issueTags, Set.of(), false));
   }
 
   private long cards() {

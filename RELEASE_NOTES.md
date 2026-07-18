@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 00.39.00 — 2026-07-18
+
+- **AND/OR tag matching on the editorial board**: the board's tag filter gains a
+  "Tag match" selector — *Any (OR)* (the default, an issue matching any selected
+  tag) or *All (AND)* (an issue carrying every selected tag).
+
 ## 00.38.00 — 2026-07-18
 
 - **Fix — history back target**: opening a part's editorial history from the topic

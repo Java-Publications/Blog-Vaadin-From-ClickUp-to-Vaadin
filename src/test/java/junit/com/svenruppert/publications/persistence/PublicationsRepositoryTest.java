@@ -93,6 +93,21 @@ class PublicationsRepositoryTest {
   }
 
   @Test
+  void clientsMasterDataCreateFindDelete() {
+    assertTrue(repo.clients().isEmpty(), "no clients initially");
+    var acme = repo.createClient("ACME Publishing");
+    repo.createClient("DZone");
+
+    assertEquals(2, repo.clients().size());
+    assertTrue(repo.findClient(acme.id()).isPresent());
+    assertEquals("ACME Publishing", repo.findClient(acme.id()).orElseThrow().name());
+
+    repo.deleteClient(acme);
+    assertEquals(1, repo.clients().size());
+    assertTrue(repo.findClient(acme.id()).isEmpty());
+  }
+
+  @Test
   void partOfResolvesTheOwningPartOfAVersion() {
     Issue issue = repo.createIssue("Topic");
     var part = issue.addPart();

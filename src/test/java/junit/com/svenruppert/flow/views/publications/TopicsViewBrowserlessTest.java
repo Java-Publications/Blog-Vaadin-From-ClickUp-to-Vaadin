@@ -70,21 +70,12 @@ class TopicsViewBrowserlessTest extends BrowserlessTest {
     SubjectStores.subjectStore().setCurrentSubject(
         new AppUser(1L, "Alice", EnumSet.of(AuthorizationRole.ADMIN, AuthorizationRole.USER)),
         AppUser.class);
-
-    // Start every test with an empty global filter (it lives in the session and
-    // would otherwise leak the "Testing" query into sibling tests).
-    com.svenruppert.flow.views.publications.PublicationsFilter session =
-        com.svenruppert.flow.views.publications.PublicationsFilter.current();
-    session.setTitleQuery("");
-    session.setState(null);
   }
 
   @AfterEach
   void tearDown() {
     PublicationsProvider.reset();
     SubjectStores.subjectStore().deleteCurrentSubject(AppUser.class);
-    com.svenruppert.flow.views.publications.PublicationsFilter.current().setTitleQuery("");
-    com.svenruppert.flow.views.publications.PublicationsFilter.current().setState(null);
   }
 
   @Test
@@ -228,15 +219,18 @@ class TopicsViewBrowserlessTest extends BrowserlessTest {
   }
 
   @Test
-  @DisplayName("the master grid honours the session-scoped global title filter (F6)")
+  @DisplayName("the local search field filters the master grid by title (AA — no global filter)")
   @SuppressWarnings("unchecked")
-  void masterGridHonoursSessionFilter() {
-    // The navbar search writes the session filter; TopicsView reads it on render.
-    com.svenruppert.flow.views.publications.PublicationsFilter.current().setTitleQuery("Testing");
+  void masterGridHonoursLocalSearch() {
     UI.getCurrent().navigate(TopicsView.class);
     Grid<Issue> grid = (Grid<Issue>) $view(Grid.class).first();
+    assertEquals(2, grid.getListDataView().getItemCount(), "both seeded topics before filtering");
+
+    com.vaadin.flow.component.textfield.TextField search =
+        $view(com.vaadin.flow.component.textfield.TextField.class).first();
+    search.setValue("Testing");
     assertEquals(1, grid.getListDataView().getItemCount(),
-        "only the 'Testing' topic must survive the global title filter");
+        "only the 'Testing' topic must survive the local title search");
     assertEquals("Blog – Testing – JUnit 5 Extensions",
         grid.getListDataView().getItems().findFirst().orElseThrow().title());
   }

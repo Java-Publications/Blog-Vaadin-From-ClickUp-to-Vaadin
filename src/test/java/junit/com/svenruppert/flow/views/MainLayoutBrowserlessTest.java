@@ -124,29 +124,18 @@ class MainLayoutBrowserlessTest extends BrowserlessTest {
   }
 
   @Test
-  @DisplayName("anonymous → no global publications search in the navbar")
-  void anonymousHasNoGlobalSearch() throws Exception {
-    MainLayout layout = new MainLayout();
-    Div slot = privateDiv(layout, "filterSlot");
-    assertTrue(allDescendants(slot).noneMatch(TextField.class::isInstance),
-        "anonymous visitor must not see the publications search field");
-  }
-
-  @Test
-  @DisplayName("authenticated USER → global search field + state filter in the navbar")
-  void userSeesGlobalSearchAndStateFilter() throws Exception {
+  @DisplayName("no global publications search/filter in the navbar — filters are view-local (AA)")
+  void noGlobalPublicationsFilterInNavbar() throws Exception {
     SubjectStores.subjectStore().setCurrentSubject(
         new AppUser(14L, "Bob", EnumSet.of(AuthorizationRole.USER)), AppUser.class);
 
     MainLayout layout = new MainLayout();
-    Div slot = privateDiv(layout, "filterSlot");
-
-    TextField search = allDescendants(slot)
-        .filter(TextField.class::isInstance).map(TextField.class::cast)
-        .findFirst().orElseThrow(() -> new AssertionError("no global search field"));
-    assertEquals("global-search", search.getId().orElse(null));
-    assertTrue(allDescendants(slot).anyMatch(ComboBox.class::isInstance),
-        "the editorial-state filter combo must be present too");
+    // The navbar tail carries only the theme/locale switchers + auth action — no
+    // publications search field or state filter (those live inside each view now).
+    assertTrue(allDescendants(layout).noneMatch(TextField.class::isInstance),
+        "the navbar must not carry a global publications search field");
+    assertTrue(allDescendants(layout).noneMatch(ComboBox.class::isInstance),
+        "the navbar must not carry a global state filter");
   }
 
   // ── helpers — reflection on the private Div slot fields ────────

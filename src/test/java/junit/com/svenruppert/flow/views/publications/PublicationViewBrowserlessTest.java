@@ -127,6 +127,26 @@ class PublicationViewBrowserlessTest extends BrowserlessTest {
   }
 
   @Test
+  @DisplayName("the client is chosen from the maintained list (ComboBox), preselected from the stored name (Y)")
+  @SuppressWarnings("unchecked")
+  void clientIsAComboBoxPreselected() {
+    PublicationsRepository repo = PublicationsProvider.repository();
+    var client = repo.createClient("ACME Publishing");
+    repo.findPublication(vId).orElseThrow().setClient(client.name());
+    repo.persist();
+
+    UI.getCurrent().navigate(PublicationView.class, vId.toString());
+
+    com.vaadin.flow.component.combobox.ComboBox<com.svenruppert.publications.model.Client> combo =
+        $view(com.vaadin.flow.component.combobox.ComboBox.class).all().stream()
+            .map(c -> (com.vaadin.flow.component.combobox.ComboBox<com.svenruppert.publications.model.Client>) c)
+            .filter(c -> c.getValue() instanceof com.svenruppert.publications.model.Client)
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("no client ComboBox with a preselected value"));
+    assertEquals("ACME Publishing", combo.getValue().name());
+  }
+
+  @Test
   @DisplayName("unknown id → empty state")
   void notFound() {
     UI.getCurrent().navigate(PublicationView.class, UUID.randomUUID().toString());

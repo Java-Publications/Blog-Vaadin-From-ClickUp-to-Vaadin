@@ -121,20 +121,11 @@ public class TopicsView extends Composite<VerticalLayout> implements I18nSupport
         tr("themen.heading", "Topic workspace"),
         tr("themen.subtitle", "Issues, their parts and tags — the entry into the backlog.")));
 
-    searchField.addValueChangeListener(e -> {
-      PublicationsFilter.current().setTitleQuery(e.getValue());
-      refreshMaster();
-    });
+    // All filters are local to this view (no global/session-scoped filter).
+    searchField.addValueChangeListener(e -> refreshMaster());
     tagFilter.addValueChangeListener(e -> refreshMaster());
-    statusFilter.addValueChangeListener(e -> {
-      PublicationsFilter.current().setState(e.getValue());
-      refreshMaster();
-    });
+    statusFilter.addValueChangeListener(e -> refreshMaster());
     filterBar.onClear(this::refreshMaster);
-    // Adopt the session-scoped global filter (set by the navbar search, F6) as
-    // the initial title query so the filter survives navigation between views.
-    searchField.setValue(PublicationsFilter.current().titleQuery());
-    statusFilter.setValue(PublicationsFilter.current().state());
 
     grid.addColumn(Issue::title).setHeader(tr("themen.col.title", "Title"))
         .setFlexGrow(1).setResizable(true);
@@ -177,15 +168,15 @@ public class TopicsView extends Composite<VerticalLayout> implements I18nSupport
   // ── master ───────────────────────────────────────────────────────────────
 
   private void refreshMaster() {
-    PublicationsFilter session = PublicationsFilter.current();
     String needle = searchField.getValue() == null ? "" : searchField.getValue().strip().toLowerCase();
     Set<Tag> wanted = tagFilter.getValue();
+    EditorialState state = statusFilter.getValue();
     List<Issue> issues = repo.issues().stream()
         .filter(i -> needle.isEmpty() || i.title().toLowerCase().contains(needle))
         .filter(i -> wanted.isEmpty() || i.tags().stream().anyMatch(wanted::contains))
-        // Global editorial-state filter from the navbar (F6); title is already
-        // covered by the local search field seeded from the same holder.
-        .filter(session::matchesState)
+        // Local editorial-state filter: an issue matches if any of its parts is in
+        // the selected state.
+        .filter(i -> state == null || i.parts().stream().anyMatch(p -> p.editorialState() == state))
         .sorted((a, b) -> a.title().compareToIgnoreCase(b.title()))
         .toList();
     grid.setItems(issues);

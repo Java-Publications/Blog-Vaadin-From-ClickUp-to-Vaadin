@@ -27,6 +27,7 @@ import com.svenruppert.flow.views.ui.PageHeader;
 import com.svenruppert.flow.views.ui.TemplateBrand;
 import com.svenruppert.jsentinel.authorization.api.SubjectStores;
 import com.svenruppert.publications.model.AcquisitionStatus;
+import com.svenruppert.publications.model.Client;
 import com.svenruppert.publications.model.Part;
 import com.svenruppert.publications.model.ProductionStatus;
 import com.svenruppert.publications.model.Publication;
@@ -41,8 +42,10 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.html.H4;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.FlexLayout;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
@@ -163,10 +166,17 @@ public class PublicationView extends Composite<VerticalLayout>
       repo.persist();
     });
 
-    TextField client = new TextField(tr("pub.client", "Client"));
-    client.setValue(publication.client() == null ? "" : publication.client());
+    // Client picked from the maintainable master-data list, not typed freely (Y).
+    ComboBox<Client> client = new ComboBox<>(tr("pub.client", "Client"));
+    client.setItems(repo.clients());
+    client.setItemLabelGenerator(Client::name);
+    client.setClearButtonVisible(true);
+    client.setPlaceholder(tr("pub.client.ph", "— none —"));
+    repo.clients().stream()
+        .filter(c -> c.name().equals(publication.client()))
+        .findFirst().ifPresent(client::setValue);
     client.addValueChangeListener(e -> {
-      publication.setClient(e.getValue() == null || e.getValue().isBlank() ? null : e.getValue());
+      publication.setClient(e.getValue() == null ? null : e.getValue().name());
       repo.persist();
     });
 
@@ -253,15 +263,39 @@ public class PublicationView extends Composite<VerticalLayout>
     Div card = new Div();
     card.getStyle().set("margin-top", "var(--lumo-space-m)");
 
+    // Show every use of this version, so it is visible that a second use exists
+    // and where this version is published (Z).
+    H4 usesHeading = new H4(tr("pub.uses.heading", "Uses of this version"));
+    usesHeading.getStyle().set("margin", "0 0 var(--lumo-space-xs)");
+    card.add(usesHeading);
+    FlexLayout uses = new FlexLayout();
+    uses.setFlexWrap(FlexLayout.FlexWrap.WRAP);
+    uses.getStyle().set("gap", "var(--lumo-space-s)");
+    for (Publication use : publication.version().publications()) {
+      boolean current = use.id().equals(publication.id());
+      Button chip = new Button(use.place().name()
+          + (current ? " · " + tr("pub.uses.current", "current") : ""),
+          e -> UI.getCurrent().navigate(NAV + "/" + use.id()));
+      chip.addThemeVariants(current ? ButtonVariant.LUMO_PRIMARY : ButtonVariant.LUMO_TERTIARY,
+          ButtonVariant.LUMO_SMALL);
+      chip.setEnabled(!current);
+      uses.add(chip);
+    }
+    card.add(uses);
+
     List<PublicationPlace> others = repo.placesFor(publication.language()).stream()
-        .filter(o -> !o.id().equals(publication.place().id()))
+        .filter(o -> publication.version().publications().stream()
+            .noneMatch(p -> p.place().id().equals(o.id())))
         .toList();
 
     ComboBox<PublicationPlace> placeChoice = new ComboBox<>(tr("pub.reuse", "Second use"));
     placeChoice.setItems(others);
     placeChoice.setItemLabelGenerator(PublicationPlace::name);
-    placeChoice.setPlaceholder(tr("pub.reuse.hint", "Another place supporting {0}", publication.language().name()));
+    placeChoice.setPlaceholder(others.isEmpty()
+        ? tr("pub.reuse.none", "No further place supports {0}", publication.language().name())
+        : tr("pub.reuse.hint", "Another place supporting {0}", publication.language().name()));
     placeChoice.setWidth("320px");
+    placeChoice.setEnabled(!others.isEmpty());
 
     Button create = new Button(tr("pub.reuse.action", "Create second use"), e -> {
       PublicationPlace place = placeChoice.getValue();
@@ -269,14 +303,17 @@ public class PublicationView extends Composite<VerticalLayout>
         placeChoice.setInvalid(true);
         return;
       }
-      publication.version().planPublication(place);
+      Publication created = publication.version().planPublication(place);
       repo.persist();
-      UI.getCurrent().navigate(NAV + "/" + publication.id());
+      Notification.show(tr("pub.reuse.created", "Second use at {0} created — opening it.", place.name()));
+      UI.getCurrent().navigate(NAV + "/" + created.id());
     });
-    create.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+    create.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+    create.setEnabled(!others.isEmpty());
 
     HorizontalLayout bar = new HorizontalLayout(placeChoice, create);
     bar.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.END);
+    bar.getStyle().set("margin-top", "var(--lumo-space-m)");
     card.add(bar);
     return card;
   }

@@ -28,6 +28,10 @@ public final class DataRoot {
 
   private final List<Issue> issues = new ArrayList<>();
   private final List<PublicationPlace> publicationPlaces = new ArrayList<>();
+  // Added after the first stores existed; may be null when an older graph is
+  // loaded (Eclipse-Store does not run field initializers on load), so every
+  // access guards against null.
+  private List<Client> clients = new ArrayList<>();
 
   public List<Issue> issues() {
     return List.copyOf(issues);
@@ -53,5 +57,28 @@ public final class DataRoot {
 
   public void removePublicationPlace(PublicationPlace place) {
     publicationPlaces.remove(place);
+  }
+
+  // ── clients (Auftraggeber) ─────────────────────────────────────────────────
+
+  public List<Client> clients() {
+    if (clients == null) {
+      clients = new ArrayList<>();
+    }
+    return List.copyOf(clients);
+  }
+
+  public Client addClient(Client client) {
+    if (clients == null) {
+      clients = new ArrayList<>();
+    }
+    clients.add(Objects.requireNonNull(client, "client"));
+    return client;
+  }
+
+  public void removeClient(Client client) {
+    if (clients != null) {
+      clients.remove(client);
+    }
   }
 }

@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **Clients (Auftraggeber) are a maintainable list**: a publication's client is now
+  picked from a curated master-data list (new "Clients" admin view) instead of
+  being typed freely; renaming a client propagates to the publications using it.
+- **Second use gives feedback**: creating a second use now confirms it and opens
+  the newly planned publication, and the publication screen lists every use of the
+  version.
+- **Filters are view-local**: the global navbar search + status filter is removed;
+  the topic workspace and editorial board each keep their own local filter bars,
+  so filtering is consistent and no longer leaks across views.
+
 ## 00.39.00 — 2026-07-18
 
 - **AND/OR tag matching on the editorial board**: the board's tag filter gains a

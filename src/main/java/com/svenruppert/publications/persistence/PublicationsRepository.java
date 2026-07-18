@@ -16,6 +16,7 @@
 
 package com.svenruppert.publications.persistence;
 
+import com.svenruppert.publications.model.Client;
 import com.svenruppert.publications.model.DataRoot;
 import com.svenruppert.publications.model.Issue;
 import com.svenruppert.publications.model.Language;
@@ -152,6 +153,28 @@ public final class PublicationsRepository {
 
   public void deletePublicationPlace(PublicationPlace place) {
     root.removePublicationPlace(place);
+    persist();
+  }
+
+  // ── clients (Auftraggeber) master data ───────────────────────────────────
+
+  public List<Client> clients() {
+    return root.clients();
+  }
+
+  public Optional<Client> findClient(UUID id) {
+    return root.clients().stream().filter(c -> c.id().equals(id)).findFirst();
+  }
+
+  public Client createClient(String name) {
+    Client client = new Client(name);
+    root.addClient(client);
+    persist();
+    return client;
+  }
+
+  public void deleteClient(Client client) {
+    root.removeClient(client);
     persist();
   }
 

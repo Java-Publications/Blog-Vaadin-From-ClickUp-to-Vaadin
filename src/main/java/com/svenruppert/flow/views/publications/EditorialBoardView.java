@@ -193,17 +193,15 @@ public class EditorialBoardView extends Composite<VerticalLayout> implements I18
   }
 
   /**
-   * Parts matching all board filters (W): the global navbar search (F6), the
-   * local free-text topic search, and the tag filter. The state filter is applied
-   * per column/group in {@link #refresh()}. Recomputed on demand.
+   * Parts matching the board's local filters (W): the free-text topic search and
+   * the tag filter (AND/OR). The state filter is applied per column/group in
+   * {@link #refresh()}. Recomputed on demand.
    */
   private List<Part> filteredParts() {
-    PublicationsFilter session = PublicationsFilter.current();
     String needle = search.getValue() == null ? "" : search.getValue().strip().toLowerCase();
     Set<Tag> wantedTags = tagFilter.getValue();
     boolean requireAll = tagMatch.getValue() == TagMatch.ALL;
     return repo.issues().stream()
-        .filter(session::matchesTitle)
         .filter(i -> needle.isEmpty() || i.title().toLowerCase().contains(needle))
         .filter(i -> matchesTags(i.tags(), wantedTags, requireAll))
         .flatMap(i -> i.parts().stream())

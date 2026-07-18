@@ -84,9 +84,11 @@ public class HistoryView extends Composite<VerticalLayout>
       showEmpty();
       return;
     }
-    // Back to where the history was opened from (S): a part or a publication.
+    // Back to where the history was opened from (S): a part's editorial history is
+    // only ever opened from the topic workspace, so it returns there — not to the
+    // language-version editor; a publication's history returns to the publication.
     String backRoute = switch (kind) {
-      case "teil" -> "teil/" + parts[1];
+      case "teil" -> TopicsView.NAV;
       case "akquise", "herstellung" -> "veroeffentlichung/" + parts[1];
       default -> null;
     };

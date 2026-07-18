@@ -88,6 +88,21 @@ class HistoryViewBrowserlessTest extends BrowserlessTest {
   }
 
   @Test
+  @DisplayName("back from a part's history returns to the topic workspace, not the version editor (V)")
+  void partHistoryBackGoesToTopics() {
+    UI.getCurrent().navigate(HistoryView.class, "teil/" + partId);
+    com.vaadin.flow.component.button.Button back = $view(com.vaadin.flow.component.button.Button.class)
+        .all().stream().filter(b -> "Back".equals(b.getText())).findFirst()
+        .orElseThrow(() -> new AssertionError("no back button on the part history"));
+
+    back.click();
+    // Clicking back must land on the topic workspace (route 'themen'), not 'teil'.
+    assertTrue($view(H1.class).all().stream()
+            .anyMatch(h -> "Topic workspace".equals(h.getText())),
+        "back from a part history must return to the topic workspace");
+  }
+
+  @Test
   @DisplayName("no path → empty state")
   void emptyWithoutPath() {
     UI.getCurrent().navigate(HistoryView.class);

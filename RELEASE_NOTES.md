@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 00.38.00 — 2026-07-18
+
+- **Fix — history back target**: opening a part's editorial history from the topic
+  workspace and clicking "back" now returns to the topic workspace (previously it
+  landed in the language-version editor).
+- **Complex filters on the editorial board**: the board gains its own filter bar —
+  a free-text topic search, a tag multi-select, and an editorial-state
+  multi-select that limits which state columns / table groups are shown; applied
+  to both the Kanban board and the table view.
+
 ## 00.37.00 — 2026-07-11
 
 - **Complex search for the publications table**: the publications list gains a

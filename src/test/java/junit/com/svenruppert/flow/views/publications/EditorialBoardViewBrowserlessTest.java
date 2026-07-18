@@ -163,6 +163,46 @@ class EditorialBoardViewBrowserlessTest extends BrowserlessTest {
     assertDoesNotThrow(() -> ComponentUtil.fireEvent(card, new ClickEvent<>(card)));
   }
 
+  @Test
+  @DisplayName("the board free-text search narrows the visible cards (W)")
+  void searchNarrowsBoard() {
+    UI.getCurrent().navigate(EditorialBoardView.class);
+    assertEquals(2, cards(), "two seeded parts render as two cards");
+
+    com.vaadin.flow.component.textfield.TextField search =
+        $view(com.vaadin.flow.component.textfield.TextField.class).first();
+    search.setValue("Navigation");           // matches the seeded topic title
+    assertEquals(2, cards(), "a matching search keeps the cards");
+
+    search.setValue("no-such-topic");
+    assertEquals(0, cards(), "a non-matching search removes all cards");
+  }
+
+  @Test
+  @DisplayName("the state filter limits the board to the selected states (W)")
+  @SuppressWarnings("unchecked")
+  void stateFilterLimitsColumns() {
+    UI.getCurrent().navigate(EditorialBoardView.class);
+    assertEquals(EditorialState.values().length, columns(), "all states shown by default");
+
+    // The board has two multi-selects (tags, then state); the state filter is second.
+    com.vaadin.flow.component.combobox.MultiSelectComboBox<EditorialState> stateFilter =
+        (com.vaadin.flow.component.combobox.MultiSelectComboBox<EditorialState>)
+            $view(com.vaadin.flow.component.combobox.MultiSelectComboBox.class).all().get(1);
+    stateFilter.setValue(java.util.Set.of(EditorialState.IN_PROGRESS));
+    assertEquals(1, columns(), "only the selected state's column remains");
+  }
+
+  private long cards() {
+    return $view(Div.class).all().stream()
+        .filter(d -> d.getId().orElse("").startsWith("card-")).count();
+  }
+
+  private long columns() {
+    return $view(Div.class).all().stream()
+        .filter(d -> d.getId().orElse("").startsWith("col-")).count();
+  }
+
   private Div byId(String id) {
     return $view(Div.class).all().stream()
         .filter(d -> id.equals(d.getId().orElse(null)))

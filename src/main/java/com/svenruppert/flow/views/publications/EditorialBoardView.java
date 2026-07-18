@@ -21,14 +21,17 @@ import com.svenruppert.flow.security.model.AppUser;
 import com.svenruppert.flow.security.roles.AuthorizationRole;
 import com.svenruppert.flow.security.roles.VisibleFor;
 import com.svenruppert.flow.views.MainLayout;
+import com.svenruppert.flow.views.ui.FilterBar;
 import com.svenruppert.flow.views.ui.PageHeader;
 import com.svenruppert.flow.views.ui.TemplateBrand;
 import com.svenruppert.jsentinel.authorization.api.SubjectStores;
 import com.svenruppert.publications.model.EditorialState;
 import com.svenruppert.publications.model.Part;
+import com.svenruppert.publications.model.Tag;
 import com.svenruppert.publications.persistence.PublicationsProvider;
 import com.svenruppert.publications.persistence.PublicationsRepository;
 import com.vaadin.flow.component.Composite;
+import com.vaadin.flow.component.combobox.MultiSelectComboBox;
 import com.vaadin.flow.component.dnd.DragSource;
 import com.vaadin.flow.component.dnd.DropTarget;
 import com.vaadin.flow.component.html.Div;
@@ -37,13 +40,17 @@ import com.vaadin.flow.component.orderedlayout.FlexLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
+import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.component.treegrid.TreeGrid;
 import com.vaadin.flow.router.Route;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * V3 — Editorial board. Shows the editorial progress of all {@link Part}s in two
@@ -73,8 +80,25 @@ public class EditorialBoardView extends Composite<VerticalLayout> implements I18
   private final Tab tableTab = new Tab(tr("tafel.view.table", "Table"));
   private final Tabs viewTabs = new Tabs(boardTab, tableTab);
 
+  // Complex search filters for the board (W).
+  private final FilterBar filterBar = new FilterBar();
+  private final TextField search;
+  private final MultiSelectComboBox<Tag> tagFilter;
+  private final MultiSelectComboBox<EditorialState> stateFilter;
+
   /** The part currently being dragged; set on drag start, cleared on drag end/drop. */
   private transient Part draggedPart;
+
+  {
+    search = filterBar.addText(tr("tafel.filter.search", "Search"),
+        tr("tafel.filter.search.ph", "Topic title…"));
+    tagFilter = filterBar.addMultiSelect(tr("tafel.filter.tags", "Tags"),
+        allTags(), tr("tafel.filter.tags.ph", "Any tag"));
+    tagFilter.setItemLabelGenerator(Tag::name);
+    stateFilter = filterBar.addMultiSelect(tr("tafel.filter.state", "State"),
+        List.of(EditorialState.values()), tr("tafel.filter.state.ph", "Any state"));
+    stateFilter.setItemLabelGenerator(EditorialState::name);
+  }
 
   public EditorialBoardView() {
     VerticalLayout root = getContent();
@@ -85,6 +109,12 @@ public class EditorialBoardView extends Composite<VerticalLayout> implements I18
         tr("tafel.heading", "Editorial board"),
         tr("tafel.subtitle",
             "Editorial state per part — drag a card to another column, double-click to edit, or switch to the table view.")));
+
+    search.addValueChangeListener(e -> refresh());
+    tagFilter.addValueChangeListener(e -> refresh());
+    stateFilter.addValueChangeListener(e -> refresh());
+    filterBar.onClear(this::refresh);
+    root.add(filterBar);
 
     viewTabs.addSelectedChangeListener(e -> updateVisibleView());
     root.add(viewTabs);
@@ -123,9 +153,15 @@ public class EditorialBoardView extends Composite<VerticalLayout> implements I18
   private void refresh() {
     List<Part> all = filteredParts();
 
+    // Only the selected states get a column/group; empty selection shows all.
+    Set<EditorialState> wantedStates = stateFilter.getValue();
+    List<EditorialState> visibleStates = wantedStates.isEmpty()
+        ? List.of(EditorialState.values())
+        : Arrays.stream(EditorialState.values()).filter(wantedStates::contains).toList();
+
     // ── Kanban board ──
     board.removeAll();
-    for (EditorialState state : EditorialState.values()) {
+    for (EditorialState state : visibleStates) {
       List<Part> inColumn = all.stream()
           .filter(p -> p.editorialState() == state)
           .toList();
@@ -134,7 +170,7 @@ public class EditorialBoardView extends Composite<VerticalLayout> implements I18
 
     // ── Table (grouped by status, sorted by name) ──
     List<BoardRow> groups = new ArrayList<>();
-    for (EditorialState state : EditorialState.values()) {
+    for (EditorialState state : visibleStates) {
       List<Part> inState = partsInStateSortedByName(all, state);
       if (!inState.isEmpty()) {
         groups.add(new GroupRow(state, inState.size()));
@@ -144,13 +180,30 @@ public class EditorialBoardView extends Composite<VerticalLayout> implements I18
     table.expand(groups);
   }
 
-  /** Parts of issues matching the global navbar search (F6) — recomputed on demand. */
+  /**
+   * Parts matching all board filters (W): the global navbar search (F6), the
+   * local free-text topic search, and the tag filter. The state filter is applied
+   * per column/group in {@link #refresh()}. Recomputed on demand.
+   */
   private List<Part> filteredParts() {
-    PublicationsFilter filter = PublicationsFilter.current();
+    PublicationsFilter session = PublicationsFilter.current();
+    String needle = search.getValue() == null ? "" : search.getValue().strip().toLowerCase();
+    Set<Tag> wantedTags = tagFilter.getValue();
     return repo.issues().stream()
-        .filter(filter::matchesTitle)
+        .filter(session::matchesTitle)
+        .filter(i -> needle.isEmpty() || i.title().toLowerCase().contains(needle))
+        .filter(i -> wantedTags.isEmpty() || i.tags().stream().anyMatch(wantedTags::contains))
         .flatMap(i -> i.parts().stream())
         .toList();
+  }
+
+  /** All tags across the issues, ordered case-insensitively (for the tag filter). */
+  private List<Tag> allTags() {
+    return repo.issues().stream()
+        .flatMap(i -> i.tags().stream())
+        .collect(java.util.stream.Collectors.toCollection(
+            () -> new TreeSet<>((a, b) -> a.name().compareToIgnoreCase(b.name()))))
+        .stream().toList();
   }
 
   // ── Kanban board ─────────────────────────────────────────────────────────

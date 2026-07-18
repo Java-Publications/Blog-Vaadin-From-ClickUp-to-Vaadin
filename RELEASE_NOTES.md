@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 00.40.00 — 2026-07-18
+
 - **Clients (Auftraggeber) are a maintainable list**: a publication's client is now
   picked from a curated master-data list (new "Clients" admin view) instead of
   being typed freely; renaming a client propagates to the publications using it.

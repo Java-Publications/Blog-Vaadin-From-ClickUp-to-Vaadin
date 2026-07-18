@@ -89,13 +89,17 @@ public class TopicsView extends Composite<VerticalLayout> implements I18nSupport
   private static final Pattern BARE_URL =
       Pattern.compile("(?<![(<\\]])(https?://[^\\s<>()\\[\\]]*[^\\s<>()\\[\\].,;:!?'\"])");
 
+  /** How multiple selected tags are combined (AB). */
+  private enum TagMatch { ANY, ALL }
+
   private final transient PublicationsRepository repo = PublicationsProvider.repository();
 
   private final Grid<Issue> grid = new Grid<>(Issue.class, false);
   private final FilterBar filterBar = new FilterBar();
   private final TextField searchField;
   private final MultiSelectComboBox<Tag> tagFilter;
-  private final ComboBox<EditorialState> statusFilter;
+  private final ComboBox<TagMatch> tagMatch;
+  private final MultiSelectComboBox<EditorialState> statusFilter;
   private final Div detail = new Div();
 
   /** The part currently being dragged in the detail parts grid (F5 reorder). */
@@ -107,8 +111,14 @@ public class TopicsView extends Composite<VerticalLayout> implements I18nSupport
     tagFilter = filterBar.addMultiSelect(tr("themen.filter.tags", "Tags"),
         allTags(), tr("themen.filter.tags.ph", "Any tag"));
     tagFilter.setItemLabelGenerator(Tag::name);
-    statusFilter = filterBar.addSingleSelect(tr("themen.filter.status", "Status"),
-        EditorialState.values(), tr("themen.filter.status.ph", "Any status"));
+    tagMatch = filterBar.addSingleSelect(tr("themen.filter.tagmatch", "Tag match"),
+        TagMatch.values(), tr("themen.filter.tagmatch.ph", "Any (OR)"));
+    tagMatch.setItemLabelGenerator(m -> m == TagMatch.ALL
+        ? tr("themen.filter.tagmatch.all", "All (AND)")
+        : tr("themen.filter.tagmatch.any", "Any (OR)"));
+    tagMatch.setValue(TagMatch.ANY);
+    statusFilter = filterBar.addMultiSelect(tr("themen.filter.status", "Status"),
+        List.of(EditorialState.values()), tr("themen.filter.status.ph", "Any status"));
     statusFilter.setItemLabelGenerator(EditorialState::name);
   }
 
@@ -124,6 +134,7 @@ public class TopicsView extends Composite<VerticalLayout> implements I18nSupport
     // All filters are local to this view (no global/session-scoped filter).
     searchField.addValueChangeListener(e -> refreshMaster());
     tagFilter.addValueChangeListener(e -> refreshMaster());
+    tagMatch.addValueChangeListener(e -> refreshMaster());
     statusFilter.addValueChangeListener(e -> refreshMaster());
     filterBar.onClear(this::refreshMaster);
 
@@ -170,13 +181,16 @@ public class TopicsView extends Composite<VerticalLayout> implements I18nSupport
   private void refreshMaster() {
     String needle = searchField.getValue() == null ? "" : searchField.getValue().strip().toLowerCase();
     Set<Tag> wanted = tagFilter.getValue();
-    EditorialState state = statusFilter.getValue();
+    boolean requireAllTags = tagMatch.getValue() == TagMatch.ALL;
+    Set<EditorialState> states = statusFilter.getValue();
     List<Issue> issues = repo.issues().stream()
         .filter(i -> needle.isEmpty() || i.title().toLowerCase().contains(needle))
-        .filter(i -> wanted.isEmpty() || i.tags().stream().anyMatch(wanted::contains))
-        // Local editorial-state filter: an issue matches if any of its parts is in
-        // the selected state.
-        .filter(i -> state == null || i.parts().stream().anyMatch(p -> p.editorialState() == state))
+        // Tags combined with AND (all) or OR (any), per the tag-match selector (AB).
+        .filter(i -> PublicationUi.matchesTags(i.tags(), wanted, requireAllTags))
+        // Multi-select editorial-state filter, OR-combined: an issue matches if any
+        // of its parts is in any of the selected states (AB).
+        .filter(i -> states.isEmpty()
+            || i.parts().stream().anyMatch(p -> states.contains(p.editorialState())))
         .sorted((a, b) -> a.title().compareToIgnoreCase(b.title()))
         .toList();
     grid.setItems(issues);

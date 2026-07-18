@@ -200,14 +200,14 @@ class EditorialBoardViewBrowserlessTest extends BrowserlessTest {
     Set<Tag> wanted = Set.of(java, security);         // filter wants java + security
 
     // OR: the issue has at least one of them (java) → matches.
-    assertTrue(EditorialBoardView.matchesTags(issueTags, wanted, false));
+    assertTrue(com.svenruppert.flow.views.publications.PublicationUi.matchesTags(issueTags, wanted, false));
     // AND: the issue lacks 'security' → no match.
-    assertFalse(EditorialBoardView.matchesTags(issueTags, wanted, true));
+    assertFalse(com.svenruppert.flow.views.publications.PublicationUi.matchesTags(issueTags, wanted, true));
     // AND with a fully-contained selection → matches.
-    assertTrue(EditorialBoardView.matchesTags(issueTags, Set.of(java, vaadin), true));
+    assertTrue(com.svenruppert.flow.views.publications.PublicationUi.matchesTags(issueTags, Set.of(java, vaadin), true));
     // An empty selection always matches, either mode.
-    assertTrue(EditorialBoardView.matchesTags(issueTags, Set.of(), true));
-    assertTrue(EditorialBoardView.matchesTags(issueTags, Set.of(), false));
+    assertTrue(com.svenruppert.flow.views.publications.PublicationUi.matchesTags(issueTags, Set.of(), true));
+    assertTrue(com.svenruppert.flow.views.publications.PublicationUi.matchesTags(issueTags, Set.of(), false));
   }
 
   private long cards() {

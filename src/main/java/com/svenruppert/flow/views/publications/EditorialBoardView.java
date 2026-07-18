@@ -203,22 +203,9 @@ public class EditorialBoardView extends Composite<VerticalLayout> implements I18
     boolean requireAll = tagMatch.getValue() == TagMatch.ALL;
     return repo.issues().stream()
         .filter(i -> needle.isEmpty() || i.title().toLowerCase().contains(needle))
-        .filter(i -> matchesTags(i.tags(), wantedTags, requireAll))
+        .filter(i -> PublicationUi.matchesTags(i.tags(), wantedTags, requireAll))
         .flatMap(i -> i.parts().stream())
         .toList();
-  }
-
-  /**
-   * Whether {@code issueTags} satisfies the {@code wanted} tag selection: with
-   * {@code requireAll} the issue must carry <em>all</em> selected tags (AND),
-   * otherwise <em>any</em> of them (OR). An empty selection always matches. Pure
-   * and public so the AND/OR semantics are unit-testable.
-   */
-  public static boolean matchesTags(Set<Tag> issueTags, Set<Tag> wanted, boolean requireAll) {
-    if (wanted.isEmpty()) {
-      return true;
-    }
-    return requireAll ? issueTags.containsAll(wanted) : issueTags.stream().anyMatch(wanted::contains);
   }
 
   /** All tags across the issues, ordered case-insensitively (for the tag filter). */

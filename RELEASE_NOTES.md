@@ -11,6 +11,9 @@
 - **Filters are view-local**: the global navbar search + status filter is removed;
   the topic workspace and editorial board each keep their own local filter bars,
   so filtering is consistent and no longer leaks across views.
+- **Topic workspace filters**: the tag filter gains an Any (OR) / All (AND)
+  selector, and the status filter becomes a multi-select combined with OR (a topic
+  matches if any of its parts is in any selected state).
 
 ## 00.39.00 — 2026-07-18
 

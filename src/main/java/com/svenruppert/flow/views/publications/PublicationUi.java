@@ -21,7 +21,10 @@ import com.svenruppert.publications.model.AcquisitionStatus;
 import com.svenruppert.publications.model.EditorialState;
 import com.svenruppert.publications.model.Part;
 import com.svenruppert.publications.model.ProductionStatus;
+import com.svenruppert.publications.model.Tag;
 import com.vaadin.flow.component.html.Span;
+
+import java.util.Set;
 
 /**
  * A small collection of reusable Lumo badges for the publications views. Maps the
@@ -48,6 +51,20 @@ public final class PublicationUi {
   /** Neutral tag badge. */
   public static Span tag(String name) {
     return badge(name, "contrast");
+  }
+
+  /**
+   * Whether {@code issueTags} satisfies the {@code wanted} tag selection: with
+   * {@code requireAll} the issue must carry <em>all</em> selected tags (AND),
+   * otherwise <em>any</em> of them (OR). An empty selection always matches. Pure
+   * and shared by the topic workspace and the editorial board so the AND/OR
+   * semantics stay identical.
+   */
+  public static boolean matchesTags(Set<Tag> issueTags, Set<Tag> wanted, boolean requireAll) {
+    if (wanted.isEmpty()) {
+      return true;
+    }
+    return requireAll ? issueTags.containsAll(wanted) : issueTags.stream().anyMatch(wanted::contains);
   }
 
   /**

@@ -97,7 +97,7 @@ public class DashboardView extends Composite<VerticalLayout>
     root.add(buildRecentActivityCard());
   }
 
-  // ── Publications metrics (Publikationsverwaltung domain) ───────
+  // ── Publications metrics (publication management domain) ───────
 
   private FlexLayout buildPublicationsRow() {
     var repo = com.svenruppert.publications.persistence.PublicationsProvider.repository();

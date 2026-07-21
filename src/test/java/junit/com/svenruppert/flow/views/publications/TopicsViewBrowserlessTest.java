@@ -85,7 +85,7 @@ class TopicsViewBrowserlessTest extends BrowserlessTest {
   @Test
   @DisplayName("NAV constant is 'themen'")
   void navConstant() {
-    assertEquals("themen", TopicsView.NAV);
+    assertEquals("topics", TopicsView.NAV);
   }
 
   @Test

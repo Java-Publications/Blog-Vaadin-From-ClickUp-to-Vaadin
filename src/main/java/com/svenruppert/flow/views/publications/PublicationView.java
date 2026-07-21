@@ -73,7 +73,7 @@ import java.util.UUID;
 public class PublicationView extends Composite<VerticalLayout>
     implements HasUrlParameter<String>, I18nSupport {
 
-  public static final String NAV = "veroeffentlichung";
+  public static final String NAV = "publication";
 
   private static final long serialVersionUID = 1L;
 
@@ -115,7 +115,7 @@ public class PublicationView extends Composite<VerticalLayout>
     Part owningPart = repo.partOf(publication.version()).orElse(null);
     if (owningPart != null) {
       body.add(BackButton.to(tr("pub.back", "Back to the language version"),
-          "teil/" + owningPart.id()));
+          "part/" + owningPart.id()));
     }
 
     body.add(new PageHeader(
@@ -205,7 +205,7 @@ public class PublicationView extends Composite<VerticalLayout>
     return column(tr("pub.acquisition", "ACQUISITION"),
         tr("pub.acquisition.sub", "Sales — reduced, no billing"),
         PublicationUi.acquisition(publication.acquisitionStatus()), last, select,
-        "verlauf/akquise/" + publication.id());
+        "history/acquisition/" + publication.id());
   }
 
   private Div productionColumn() {
@@ -225,7 +225,7 @@ public class PublicationView extends Composite<VerticalLayout>
     return column(tr("pub.production", "PRODUCTION"),
         tr("pub.production.sub", "From planning to release"),
         PublicationUi.production(publication.productionStatus()), last, select,
-        "verlauf/herstellung/" + publication.id());
+        "history/production/" + publication.id());
   }
 
   private Div column(String title, String subtitle, Span bigBadge, String lastLine,

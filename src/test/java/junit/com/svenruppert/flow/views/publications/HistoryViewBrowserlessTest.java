@@ -80,7 +80,7 @@ class HistoryViewBrowserlessTest extends BrowserlessTest {
   @Test
   @DisplayName("part history lists every status change")
   void listsPartHistory() {
-    UI.getCurrent().navigate(HistoryView.class, "teil/" + partId);
+    UI.getCurrent().navigate(HistoryView.class, "part/" + partId);
     assertTrue($view(H1.class).first().getText().startsWith("History"));
     Grid<?> grid = $view(Grid.class).first();
     assertEquals(5, grid.getColumns().size(), "Seq, From, To, Actor, Timestamp");
@@ -90,13 +90,13 @@ class HistoryViewBrowserlessTest extends BrowserlessTest {
   @Test
   @DisplayName("back from a part's history returns to the topic workspace, not the version editor (V)")
   void partHistoryBackGoesToTopics() {
-    UI.getCurrent().navigate(HistoryView.class, "teil/" + partId);
+    UI.getCurrent().navigate(HistoryView.class, "part/" + partId);
     com.vaadin.flow.component.button.Button back = $view(com.vaadin.flow.component.button.Button.class)
         .all().stream().filter(b -> "Back".equals(b.getText())).findFirst()
         .orElseThrow(() -> new AssertionError("no back button on the part history"));
 
     back.click();
-    // Clicking back must land on the topic workspace (route 'themen'), not 'teil'.
+    // Clicking back must land on the topic workspace (route 'topics'), not 'part'.
     assertTrue($view(H1.class).all().stream()
             .anyMatch(h -> "Topic workspace".equals(h.getText())),
         "back from a part history must return to the topic workspace");

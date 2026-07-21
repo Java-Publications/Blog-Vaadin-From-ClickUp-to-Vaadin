@@ -70,7 +70,7 @@ import java.util.UUID;
 public class LanguageVersionView extends Composite<VerticalLayout>
     implements HasUrlParameter<String>, I18nSupport {
 
-  public static final String NAV = "teil";
+  public static final String NAV = "part";
 
   private static final long serialVersionUID = 1L;
 
@@ -216,7 +216,7 @@ public class LanguageVersionView extends Composite<VerticalLayout>
           .setHeader(tr("fassung.col.date", "Date")).setAutoWidth(true);
       grid.addComponentColumn(v -> {
         Button open = new Button(tr("fassung.open", "Open"),
-            e -> UI.getCurrent().navigate("veroeffentlichung/" + v.id()));
+            e -> UI.getCurrent().navigate("publication/" + v.id()));
         open.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
         return open;
       }).setAutoWidth(true);

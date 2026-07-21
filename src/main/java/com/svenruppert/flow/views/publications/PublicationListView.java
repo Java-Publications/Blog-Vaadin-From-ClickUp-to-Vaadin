@@ -55,7 +55,7 @@ import java.util.Set;
 public class PublicationListView extends Composite<VerticalLayout>
     implements I18nSupport {
 
-  public static final String NAV = "veroeffentlichungen";
+  public static final String NAV = "publications";
 
   private static final long serialVersionUID = 1L;
 

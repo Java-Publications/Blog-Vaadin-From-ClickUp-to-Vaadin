@@ -73,7 +73,7 @@ class PublicationPlacesViewBrowserlessTest extends BrowserlessTest {
   @Test
   @DisplayName("NAV is 'orte'; grid lists the places with a '+ Place' action")
   void listsPlaces() {
-    assertEquals("orte", PublicationPlacesView.NAV);
+    assertEquals("places", PublicationPlacesView.NAV);
     UI.getCurrent().navigate(PublicationPlacesView.class);
     assertEquals("Publication places", $view(H1.class).first().getText());
     Grid<?> grid = $view(Grid.class).first();

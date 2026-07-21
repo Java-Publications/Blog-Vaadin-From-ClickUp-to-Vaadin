@@ -71,7 +71,7 @@ class ClientsViewBrowserlessTest extends BrowserlessTest {
   @Test
   @DisplayName("NAV is 'auftraggeber'; the grid lists the clients with a '+ Client' action")
   void listsClients() {
-    assertEquals("auftraggeber", ClientsView.NAV);
+    assertEquals("clients", ClientsView.NAV);
     UI.getCurrent().navigate(ClientsView.class);
     assertEquals("Clients", $view(H1.class).first().getText());
     Grid<?> grid = $view(Grid.class).first();

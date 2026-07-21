@@ -77,7 +77,7 @@ import java.util.stream.Collectors;
 @VisibleFor(AuthorizationRole.USER)
 public class TopicsView extends Composite<VerticalLayout> implements I18nSupport {
 
-  public static final String NAV = "themen";
+  public static final String NAV = "topics";
 
   private static final long serialVersionUID = 1L;
 
@@ -314,7 +314,7 @@ public class TopicsView extends Composite<VerticalLayout> implements I18nSupport
     parts.setItems(issue.partsInOrder());
     parts.setAllRowsVisible(true);
     // Double-click a part row to open its editor (consistent with the board).
-    parts.addItemDoubleClickListener(e -> navigate("teil/" + e.getItem().id()));
+    parts.addItemDoubleClickListener(e -> navigate("part/" + e.getItem().id()));
     // F5 — reorder parts by dragging a row onto another (P0003 ordering).
     parts.setId("parts-grid");
     parts.setRowsDraggable(true);
@@ -343,15 +343,15 @@ public class TopicsView extends Composite<VerticalLayout> implements I18nSupport
     refreshMaster();
     Notification.show(tr("themen.part.added",
         "Part {0} added — opening it to add language versions.", created.position()));
-    navigate("teil/" + created.id());
+    navigate("part/" + created.id());
   }
 
   private HorizontalLayout partActions(Part part) {
     Button open = new Button(tr("themen.open", "Open"),
-        e -> navigate("teil/" + part.id()));
+        e -> navigate("part/" + part.id()));
     open.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
     Button history = new Button(tr("themen.history", "History"),
-        e -> navigate("verlauf/teil/" + part.id()));
+        e -> navigate("history/part/" + part.id()));
     history.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
     return new HorizontalLayout(open, history);
   }

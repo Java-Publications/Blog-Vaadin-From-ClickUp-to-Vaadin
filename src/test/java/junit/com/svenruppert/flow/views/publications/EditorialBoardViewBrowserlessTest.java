@@ -89,7 +89,7 @@ class EditorialBoardViewBrowserlessTest extends BrowserlessTest {
   @Test
   @DisplayName("NAV is 'redaktion'; cards are drag handles with no redundant state select (F)")
   void boardRendersCards() {
-    assertEquals("redaktion", EditorialBoardView.NAV);
+    assertEquals("editorial", EditorialBoardView.NAV);
     UI.getCurrent().navigate(EditorialBoardView.class);
     assertEquals("Editorial board", $view(H1.class).first().getText());
     assertEquals(0, $view(Select.class).all().size(),

@@ -46,8 +46,8 @@ import java.util.UUID;
 /**
  * V5 — History view. Shows one of the three status chains completely, ordered by
  * the sequence number — as an audit trail and a visible proof of orthogonality.
- * Read-only. Reachable via {@code verlauf/teil/<id>},
- * {@code verlauf/akquise/<id>}, {@code verlauf/herstellung/<id>} or without a path
+ * Read-only. Reachable via {@code history/part/<id>},
+ * {@code history/acquisition/<id>}, {@code history/production/<id>} or without a path
  * as a selection hint. Served process: P0015.
  */
 @Route(value = HistoryView.NAV, layout = MainLayout.class)
@@ -55,7 +55,7 @@ import java.util.UUID;
 public class HistoryView extends Composite<VerticalLayout>
     implements HasUrlParameter<String>, I18nSupport {
 
-  public static final String NAV = "verlauf";
+  public static final String NAV = "history";
 
   private static final long serialVersionUID = 1L;
 
@@ -88,21 +88,21 @@ public class HistoryView extends Composite<VerticalLayout>
     // only ever opened from the topic workspace, so it returns there — not to the
     // language-version editor; a publication's history returns to the publication.
     String backRoute = switch (kind) {
-      case "teil" -> TopicsView.NAV;
-      case "akquise", "herstellung" -> "veroeffentlichung/" + parts[1];
+      case "part" -> TopicsView.NAV;
+      case "acquisition", "production" -> "publication/" + parts[1];
       default -> null;
     };
     if (backRoute != null) {
       body.add(BackButton.to(tr("verlauf.back", "Back"), backRoute));
     }
     switch (kind) {
-      case "teil" -> repo.findPart(id.get())
+      case "part" -> repo.findPart(id.get())
           .ifPresentOrElse(p -> show(tr("verlauf.dim.editorial", "Editorial state"), p.editorialWork()),
               this::showEmpty);
-      case "akquise" -> repo.findPublication(id.get())
+      case "acquisition" -> repo.findPublication(id.get())
           .ifPresentOrElse(v -> show(tr("verlauf.dim.acquisition", "Acquisition"), v.acquisition()),
               this::showEmpty);
-      case "herstellung" -> repo.findPublication(id.get())
+      case "production" -> repo.findPublication(id.get())
           .ifPresentOrElse(v -> show(tr("verlauf.dim.production", "Production"), v.production()),
               this::showEmpty);
       default -> showEmpty();

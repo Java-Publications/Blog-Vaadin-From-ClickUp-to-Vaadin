@@ -32,7 +32,7 @@ public enum AppPermission {
   AUDIT_READ("audit:read"),
   ADMIN_SESSIONS("admin:sessions"),
   ADMIN_ROLES("admin:roles"),
-  // Publikationsverwaltung domain
+  // publication management domain
   PUBLICATIONS_READ("publications:read"),
   PUBLICATIONS_EDIT("publications:edit"),
   MASTERDATA_EDIT("masterdata:edit"),

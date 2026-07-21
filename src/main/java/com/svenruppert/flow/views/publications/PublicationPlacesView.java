@@ -51,7 +51,7 @@ import java.util.Set;
 @RequiresPermission("masterdata:edit")
 public class PublicationPlacesView extends Composite<VerticalLayout> implements I18nSupport {
 
-  public static final String NAV = "orte";
+  public static final String NAV = "places";
 
   private static final long serialVersionUID = 1L;
 

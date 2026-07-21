@@ -44,7 +44,7 @@ import com.vaadin.flow.router.Route;
 @RequiresPermission("masterdata:edit")
 public class ClientsView extends Composite<VerticalLayout> implements I18nSupport {
 
-  public static final String NAV = "auftraggeber";
+  public static final String NAV = "clients";
 
   private static final long serialVersionUID = 1L;
 

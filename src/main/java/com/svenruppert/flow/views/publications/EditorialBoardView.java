@@ -69,7 +69,7 @@ import java.util.TreeSet;
 @VisibleFor(AuthorizationRole.USER)
 public class EditorialBoardView extends Composite<VerticalLayout> implements I18nSupport {
 
-  public static final String NAV = "redaktion";
+  public static final String NAV = "editorial";
 
   private static final long serialVersionUID = 1L;
 

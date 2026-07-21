@@ -102,7 +102,7 @@ public class LocaleSwitcher extends Div {
    *   <li>Server-side log line proves the click handler reached the
    *       server — visible in the Jetty console as
    *       {@code LocaleSwitcher: switching to <code>}.</li>
-   *   <li>Toast notification ("Sprache wechseln…") proves the JS-side
+   *   <li>Toast notification (a 🌐 plus the language's own display name) proves the JS-side
    *       round-trip reached the browser before the redirect.</li>
    * </ul>
    *

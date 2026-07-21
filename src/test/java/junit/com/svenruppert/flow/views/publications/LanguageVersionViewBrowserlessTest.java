@@ -82,7 +82,7 @@ class LanguageVersionViewBrowserlessTest extends BrowserlessTest {
   @Test
   @DisplayName("NAV constant is 'teil'")
   void navConstant() {
-    assertEquals("teil", LanguageVersionView.NAV);
+    assertEquals("part", LanguageVersionView.NAV);
   }
 
   @Test

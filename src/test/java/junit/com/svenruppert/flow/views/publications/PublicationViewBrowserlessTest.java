@@ -89,7 +89,7 @@ class PublicationViewBrowserlessTest extends BrowserlessTest {
   @Test
   @DisplayName("NAV constant is 'veroeffentlichung'")
   void navConstant() {
-    assertEquals("veroeffentlichung", PublicationView.NAV);
+    assertEquals("publication", PublicationView.NAV);
   }
 
   @Test

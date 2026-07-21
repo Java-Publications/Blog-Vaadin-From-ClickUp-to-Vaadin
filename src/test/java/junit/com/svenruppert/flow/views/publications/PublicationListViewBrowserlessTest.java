@@ -81,7 +81,7 @@ class PublicationListViewBrowserlessTest extends BrowserlessTest {
   @DisplayName("NAV is 'veroeffentlichungen'; the grid lists the publication with a blog-post column (R)")
   @SuppressWarnings("unchecked")
   void listsPublications() {
-    assertEquals("veroeffentlichungen", PublicationListView.NAV);
+    assertEquals("publications", PublicationListView.NAV);
     UI.getCurrent().navigate(PublicationListView.class);
     assertEquals("Publications", $view(H1.class).first().getText());
     Grid<com.svenruppert.publications.model.Publication> grid =
